@@ -31,4 +31,10 @@
 
 2️⃣ Установите необходимые библиотеки, выполнив команду: pip install aiogram aiosmtplib
 
+3️⃣ Клонируйте репозиторий проекта с помощью команды: git clone https://github.com/Danbesy/Telegram-Reporter
+
+4️⃣ Перейдите в директорию проекта: cd Telegram-Reporter
+
+5️⃣ Запустите код командой: python3 main.py
+
 🚀 Быстро, удобно и эффективно!
