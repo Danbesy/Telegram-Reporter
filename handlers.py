@@ -12,11 +12,6 @@
 # Telegram Channel - https://t.me/Danbesy_Dev
 # Telegram Bio - https://Danbesy_Bio
 # GitHub - https://github.com/Danbesy
-#
-# GitHub - https://github.com/Danbesy
-# Telegram Bio - https://Danbesy_Bio
-# Telegram Channel - https://t.me/Danbesy_Dev
-# Telegram - https://t.me/danbesy
 
 import logging
 import asyncio
@@ -1137,5 +1132,3 @@ async def confirm(callback: CallbackQuery, state: FSMContext):
     except Exception as e:
         logger.error(f"Ошибка при создании счета: {str(e)}")
         await callback.message.answer("❌ Произошла ошибка при создании счета. Попробуйте еще раз.")
-
-
