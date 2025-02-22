@@ -1,11 +1,22 @@
-#     ____                        _____                    _                                # Telegram - https://t.me/danbesy
-#    |  _ \               ____   |  __ \                  | |                               # Telegram Channel - https://t.me/Danbesy_Dev
-#    | |_) |  _   _      / __ \  | |  | |   __ _   _ __   | |__     ___   ___   _   _       # Telegram Bio - https://Danbesy_Bio
-#    |  _ <  | | | |    / / _` | | |  | |  / _` | | '_ \  | '_ \   / _ \ / __| | | | |      # GitHub - https://github.com/Danbesy
-#    | |_) | | |_| |   | | (_| | | |__| | | (_| | | | | | | |_) | |  __/ \__ \ | |_| |      # GitHub - https://github.com/Danbesy
-#    |____/   \__, |    \ \__,_| |_____/   \__,_| |_| |_| |_.__/   \___| |___/  \__, |      # Telegram Bio - https://Danbesy_Bio
-#             __/ |     \____/                                                  __/ |       # Telegram Channel - https://t.me/Danbesy_Dev
-#            |___/                                                             |___/        # Telegram - https://t.me/danbesy
+
+#   ____                        _____                    _                          
+#  |  _ \               ____   |  __ \                  | |                         
+#  | |_) |  _   _      / __ \  | |  | |   __ _   _ __   | |__     ___   ___   _   _ 
+#  |  _ <  | | | |    / / _` | | |  | |  / _` | | '_ \  | '_ \   / _ \ / __| | | | |
+#  | |_) | | |_| |   | | (_| | | |__| | | (_| | | | | | | |_) | |  __/ \__ \ | |_| |
+#  |____/   \__, |    \ \__,_| |_____/   \__,_| |_| |_| |_.__/   \___| |___/  \__, |
+#            __/ |     \____/                                                  __/ |
+#           |___/                                                             |___/ 
+#
+# Telegram - https://t.me/danbesy
+# Telegram Channel - https://t.me/Danbesy_Dev
+# Telegram Bio - https://Danbesy_Bio
+# GitHub - https://github.com/Danbesy
+#
+# GitHub - https://github.com/Danbesy
+# Telegram Bio - https://Danbesy_Bio
+# Telegram Channel - https://t.me/Danbesy_Dev
+# Telegram - https://t.me/danbesy
 
 import logging
 import asyncio
