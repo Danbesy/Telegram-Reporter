@@ -15,7 +15,8 @@ async def main():
     await bot.delete_my_commands()
 
     commands = [
-        BotCommand(command="/start", description="Перезапустить бота 🔁")
+        BotCommand(command="/start", description="Перезапустить бота 🔁 Restart bot"),
+        BotCommand(command="/language", description="Смена языка 🌐 Change language")
     ]
     await bot.set_my_commands(commands)
 
