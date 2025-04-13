@@ -1,411 +1,281 @@
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
+from config import *
 
-start = InlineKeyboardMarkup(inline_keyboard=[
-    [
-        InlineKeyboardButton(text="🚀 Начать", callback_data="start")
-    ]
-])
+add_bot_url = f"https://t.me/{BOT_USERNAME}?startchannel=true"
 
 main = InlineKeyboardMarkup(inline_keyboard=[
     [
-        InlineKeyboardButton(text="🚀 Начать", callback_data="start")
+        InlineKeyboardButton(text="🔍 Поиск подарков", callback_data="gifts_search")
     ],
     [
-        InlineKeyboardButton(text="👤 Профиль", callback_data="profile")
+        InlineKeyboardButton(text="🌐 Глобальный поиск", callback_data="global_search")
+    ],
+    [
+        InlineKeyboardButton(text="📊 Общая статистика БД", callback_data="general_db_stats")
+    ],
+    [
+        InlineKeyboardButton(text="📌 Информация", callback_data="info")
     ]
 ])
 
 main_admin = InlineKeyboardMarkup(inline_keyboard=[
     [
-        InlineKeyboardButton(text="🚀 Начать", callback_data="start")
+        InlineKeyboardButton(text="🔍 Поиск подарков", callback_data="gifts_search")
     ],
     [
-        InlineKeyboardButton(text="👤 Профиль", callback_data="profile")
+        InlineKeyboardButton(text="🌐 Глобальный поиск", callback_data="global_search")
     ],
     [
-        InlineKeyboardButton(text="⚙️ Админ-панель", callback_data="admin_panel")
-    ]
-])
-
-menu = InlineKeyboardMarkup(inline_keyboard=[
-    [
-        InlineKeyboardButton(text="🏠 Главное меню", callback_data="menu")
-    ]
-])
-
-admin_panel = InlineKeyboardMarkup(row_width=2, inline_keyboard=[
-    [
-        InlineKeyboardButton(text="✏️ Управление пользователем", callback_data="user_management")
-    ]
-])
-
-profile = InlineKeyboardMarkup(inline_keyboard=[
-    [
-        InlineKeyboardButton(text="🛒 Купить подписку", callback_data="subscription_buy")
+        InlineKeyboardButton(text="📊 Общая статистика БД", callback_data="general_db_stats")
     ],
     [
-        InlineKeyboardButton(text="💳 Пополнение баланса", callback_data="add_balance")
-    ]
-])
-
-
-subscription_buy = InlineKeyboardMarkup(inline_keyboard=[
-    [
-        InlineKeyboardButton(text="🛒 Купить подписку", callback_data="subscription_buy")
-    ]
-])
-
-subscription_duration = InlineKeyboardMarkup(row_width=2, inline_keyboard=[
-    [
-        InlineKeyboardButton(text="📅 7 дней (70₽)", callback_data="7|7 дней|70₽"),
-        InlineKeyboardButton(text="📅 14 дней (140₽)", callback_data="14|14 дней|140₽")
+        InlineKeyboardButton(text="📌 Информация", callback_data="info")
     ],
     [
-        InlineKeyboardButton(text="📅 30 дней (210₽)", callback_data="30|30 дней|210₽"),
-        InlineKeyboardButton(text="📅 60 дней (420₽)", callback_data="60|60 дней|420₽")
+        InlineKeyboardButton(text="🔧 Админ-панель", callback_data="admin_panel")
+    ]
+])
+
+admin_panel = InlineKeyboardMarkup(inline_keyboard=[
+    [
+        InlineKeyboardButton(text="🚀 Парсинг подарков", callback_data="parsing")
     ],
     [
-        InlineKeyboardButton(text="❌ Отмена", callback_data="cancel")
-    ]
-])
-
-user_management = InlineKeyboardMarkup(inline_keyboard=[
-    [
-        InlineKeyboardButton(text="🎁 Подарить подписку", callback_data="gift_a_sub|🎁 Подарить подписку")
+        InlineKeyboardButton(text="🔄 Авто-парсинг", callback_data="auto_parsing")  
     ],
     [
-        InlineKeyboardButton(text="💸 Изменить баланс", callback_data="change_balance|💸 Изменить баланс")
-    ]
-])
-
-category = InlineKeyboardMarkup(inline_keyboard=[
-    [
-        InlineKeyboardButton(text="👤 Жалобы на пользователя", callback_data="report_user")
+        InlineKeyboardButton(text="📊 Прогресс парсинга", callback_data="progress_parsing")
     ],
     [
-        InlineKeyboardButton(text="📢 Жалобы на канал", callback_data="report_channel")
+        InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_menu")
+    ]
+])
+
+parsing = InlineKeyboardMarkup(inline_keyboard=[
+    [
+        InlineKeyboardButton(text="🟢 Начать парсинг подарков", callback_data="start_gift_parsing")
     ],
     [
-        InlineKeyboardButton(text="🤖 Жалобы на бота", callback_data="report_bot")
+        InlineKeyboardButton(text="🛑 Завершить парсинг подарков", callback_data="stop_gift_parsing")
+    ]
+])
+
+auto_parsing = InlineKeyboardMarkup(inline_keyboard=[
+    [
+        InlineKeyboardButton(text="🚀 Добавить бота в канал", url=add_bot_url)
     ],
     [
-        InlineKeyboardButton(text="❌ Отмена", callback_data="cancel")
-    ]
-])
-
-reasons_for_user = InlineKeyboardMarkup(row_width=2, inline_keyboard=[
-    [
-        InlineKeyboardButton(text="🚫 Спам", callback_data="spam_user|🚫 Спам"),
-        InlineKeyboardButton(text="🔒 Личные данные", callback_data="personal_data_user|🔒 Личные данные")
-
+        InlineKeyboardButton(text="🟢 Начать авто-парсинг", callback_data="start_auto_parsing")
     ],
     [
-        InlineKeyboardButton(text="😈 Троллинг", callback_data="trolling_user|😈 Троллинг"),
-        InlineKeyboardButton(text="🗑️ Снос сессий", callback_data="delete_sessions_user|🗑️ Снос сессий")
+        InlineKeyboardButton(text="🛑 Завершить авто-парсинг", callback_data="stop_auto_parsing")
+    ]
+])
+
+gift_management = InlineKeyboardMarkup(inline_keyboard=[
+    [
+        InlineKeyboardButton(text="🎁 Добавить подарок", callback_data="add_gift")
     ],
     [
-        InlineKeyboardButton(text="💎 Премиум", callback_data="premium_user|💎 Премиум"),
-        InlineKeyboardButton(text="🌐 Виртуальный номер", callback_data="virtual_number_user|🌐 Виртуальный номер")
-    ]
-])
-
-reasons_for_channel = InlineKeyboardMarkup(row_width=2, inline_keyboard=[
-    [
-        InlineKeyboardButton(text="🔐 Личные данные в ТГК", callback_data="personal_data_channel|🔐 Личные данные в ТГК"),
-        InlineKeyboardButton(text="🐾 Живодерство", callback_data="flaying_channel|🐾 Живодерство")
+        InlineKeyboardButton(text="🎁 Удалить подарок", callback_data="delete_gift")
     ],
     [
-        InlineKeyboardButton(text="🚫 ЦП", callback_data="cp_channel|🚫 ЦП"),
-        InlineKeyboardButton(text="📜 Прайс-лист (DOX & SWAT)", callback_data="price_channel|📜 Прайс-лист (DOX & SWAT)")
+        InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_menu")
+    ]
+])
+
+yes_or_no = InlineKeyboardMarkup(inline_keyboard=[
+    [
+        InlineKeyboardButton(text="✅ Да", callback_data="yes"),
+        InlineKeyboardButton(text="❌ Нет", callback_data="no")
+    ]
+])
+
+gifts_list = InlineKeyboardMarkup(inline_keyboard=[
+    [
+        InlineKeyboardButton(text="🌌 Astral Shard", callback_data="Astral Shard:AstralShard"),
+        InlineKeyboardButton(text="🔯 B-Day Candle", callback_data="B-Day Candle:BDayCandle")
     ],
     [
-        InlineKeyboardButton(text="🔞 Порнография (18+)", callback_data="pornography_channel|🔞 Порнография (18+)"),
-        InlineKeyboardButton(text="🩸 Насилие", callback_data="violence_channel|🩸 Насилие")
-    ]
-])
-
-reasons_for_bot = InlineKeyboardMarkup(inline_keyboard=[
-    [
-        InlineKeyboardButton(text="🕵️‍♂️ Осинт бот", callback_data="osint_bot|🕵️‍♂️ Осинт бот")
-    ]
-])
-
-confirm_mailing_yes_no = InlineKeyboardMarkup(row_width=2, inline_keyboard=[
-    [
-        InlineKeyboardButton(text="✅ Да", callback_data="confirm_mailing_yes"),
-        InlineKeyboardButton(text="❌ Нет", callback_data="confirm_mailing_no")
-    ]
-])
-
-confirm_gift_a_sub_yes_no = InlineKeyboardMarkup(row_width=2, inline_keyboard=[
-    [
-        InlineKeyboardButton(text="✅ Да", callback_data="confirm_gift_a_sub_yes"),
-        InlineKeyboardButton(text="❌ Нет", callback_data="confirm_gift_a_sub_no")
-    ]
-])
-
-confirm_change_balance_yes_no = InlineKeyboardMarkup(row_width=2, inline_keyboard=[
-    [
-        InlineKeyboardButton(text="✅ Да", callback_data="confirm_change_balance_yes"),
-        InlineKeyboardButton(text="❌ Нет", callback_data="confirm_change_balance_no")
-    ]
-])
-
-confirm_add_balance_yes_no = InlineKeyboardMarkup(row_width=2, inline_keyboard=[
-    [
-        InlineKeyboardButton(text="✅ Да", callback_data="confirm_add_balance_yes"),
-        InlineKeyboardButton(text="❌ Нет", callback_data="confirm_add_balance_no")
-    ]
-])
-
-confirm_pay_yes_no = InlineKeyboardMarkup(row_width=2, inline_keyboard=[
-    [
-        InlineKeyboardButton(text="✅ Да", callback_data="confirm_pay_yes"),
-        InlineKeyboardButton(text="❌ Нет", callback_data="confirm_pay_no")
-    ]
-])
-
-payment_systems = InlineKeyboardMarkup(inline_keyboard=[
-    [
-        InlineKeyboardButton(text="💳 Crypto Bot", callback_data="cryptobot_payment|💳 Crypto Bot")
-    ]
-])
-
-cancel = InlineKeyboardMarkup(inline_keyboard=[
-    [
-        InlineKeyboardButton(text="❌ Отмена", callback_data="cancel")
-    ]
-])
-
-repeat = InlineKeyboardMarkup(inline_keyboard=[
-    [
-        InlineKeyboardButton(text="🔄 Повторить", callback_data="start")
-    ]
-])
-
-stop = InlineKeyboardMarkup(inline_keyboard=[
-    [
-        InlineKeyboardButton(text="⛔ Остановить рассылку", callback_data="stop")
-    ]
-])
-
-pay = InlineKeyboardMarkup(inline_keyboard=[
-    [
-        InlineKeyboardButton(text="🛒 Перейти к оплате", callback_data="pay")
+        InlineKeyboardButton(text="🍓 Berry Box", callback_data="Berry Box:BerryBox"),
+        InlineKeyboardButton(text="🧁 Bunny Muffin", callback_data="Bunny Muffin:BunnyMuffin")
     ],
     [
-        InlineKeyboardButton(text="❌ Отмена", callback_data="cancel")
-    ]
-])
-
-change_language_ru = InlineKeyboardMarkup(row_width=2, inline_keyboard=[
-    [
-        InlineKeyboardButton(text="🇺🇸 English", callback_data="select_language_en"),
-        InlineKeyboardButton(text="🇷🇺 Русский", callback_data="select_language_ru")
-    ]
-])
-
-start_en = InlineKeyboardMarkup(inline_keyboard=[
-    [
-        InlineKeyboardButton(text="🚀 Start", callback_data="start")
-    ]
-])
-
-main_en = InlineKeyboardMarkup(inline_keyboard=[
-    [
-        InlineKeyboardButton(text="🚀 Start", callback_data="start")
+        InlineKeyboardButton(text="🍬 Candy Cane", callback_data="Candy Cane:CandyCane"),
+        InlineKeyboardButton(text="🍪 Cookie Heart", callback_data="Cookie Heart:CookieHeart")
     ],
     [
-        InlineKeyboardButton(text="👤 Profile", callback_data="profile")
-    ]
-])
-
-main_admin_en = InlineKeyboardMarkup(inline_keyboard=[
-    [
-        InlineKeyboardButton(text="🚀 Start", callback_data="start")
+        InlineKeyboardButton(text="🔮 Crystal Ball", callback_data="Crystal Ball:CrystalBall"),
+        InlineKeyboardButton(text="📅 Desk Calendar", callback_data="Desk Calendar:DeskCalendar")
     ],
     [
-        InlineKeyboardButton(text="👤 Profile", callback_data="profile")
+        InlineKeyboardButton(text="💍 Diamond Ring", callback_data="Diamond Ring:DiamondRing"),
+        InlineKeyboardButton(text="🧢 Durov’s Cap", callback_data="Durov’s Cap:DurovsCap")
     ],
     [
-        InlineKeyboardButton(text="⚙️ Admin-panel", callback_data="admin_panel")
-    ]
-])
-
-menu_en = InlineKeyboardMarkup(inline_keyboard=[
-    [
-        InlineKeyboardButton(text="🏠 Main menu", callback_data="menu")
-    ]
-])
-
-admin_panel_en = InlineKeyboardMarkup(row_width=2, inline_keyboard=[
-    [
-        InlineKeyboardButton(text="✏️ User management", callback_data="user_management")
-    ]
-])
-
-profile_en = InlineKeyboardMarkup(inline_keyboard=[
-    [
-        InlineKeyboardButton(text="🛒 Buy a subscription", callback_data="subscription_buy")
+        InlineKeyboardButton(text="💀 Electric Skull", callback_data="Electric Skull:ElectricSkull"),
+        InlineKeyboardButton(text="🔇 Eternal Candle", callback_data="Eternal Candle:EternalCandle")
     ],
     [
-        InlineKeyboardButton(text="💳 Top up balance", callback_data="add_balance")
-    ]
-])
-
-
-subscription_buy_en = InlineKeyboardMarkup(inline_keyboard=[
-    [
-        InlineKeyboardButton(text="🛒 Buy a subscription", callback_data="subscription_buy")
-    ]
-])
-
-subscription_duration_en = InlineKeyboardMarkup(row_width=2, inline_keyboard=[
-    [
-        InlineKeyboardButton(text="📅 7 days (70₽)", callback_data="7|7 days|70₽"),
-        InlineKeyboardButton(text="📅 14 days (140₽)", callback_data="14|14 days|140₽")
+        InlineKeyboardButton(text="🌹 Eternal Rose", callback_data="Eternal Rose:EternalRose"),
+        InlineKeyboardButton(text="👁️ Evil Eye", callback_data="Evil Eye:EvilEye")
     ],
     [
-        InlineKeyboardButton(text="📅 30 days (210₽)", callback_data="30|30 days|210₽"),
-        InlineKeyboardButton(text="📅 60 days (420₽)", callback_data="60|60 days|420₽")
+        InlineKeyboardButton(text="🧉 Flying Broom", callback_data="Flying Broom:FlyingBroom"),
+        InlineKeyboardButton(text="🪑 Genie Lamp", callback_data="Genie Lamp:GenieLamp")
     ],
     [
-        InlineKeyboardButton(text="❌ Cancel", callback_data="cancel")
-    ]
-])
-
-user_management_en = InlineKeyboardMarkup(inline_keyboard=[
-    [
-        InlineKeyboardButton(text="🎁 Give a subscription", callback_data="gift_a_sub|🎁 Give a subscription")
+        InlineKeyboardButton(text="🍪 Ginger Cookie", callback_data="Ginger Cookie:GingerCookie"),
+        InlineKeyboardButton(text="⭐ Hanging Star", callback_data="Hanging Star:HangingStar")
     ],
     [
-        InlineKeyboardButton(text="💸 Change balance", callback_data="change_balance|💸 Change balance")
-    ]
-])
-
-category_en = InlineKeyboardMarkup(inline_keyboard=[
-    [
-        InlineKeyboardButton(text="👤 Report user", callback_data="report_user")
+        InlineKeyboardButton(text="🪴 Hex Pot", callback_data="Hex Pot:HexPot"),
+        InlineKeyboardButton(text="🍰 Homemade Cake", callback_data="Homemade Cake:HomemadeCake")
     ],
     [
-        InlineKeyboardButton(text="📢 Report channel", callback_data="report_channel")
+        InlineKeyboardButton(text="🍭 Hypno Lollipop", callback_data="Hypno Lollipop:HypnoLollipop"),
+        InlineKeyboardButton(text="💎 Ion Gem", callback_data="Ion Gem:IonGem")
     ],
     [
-        InlineKeyboardButton(text="🤖 Report bot", callback_data="report_bot")
+        InlineKeyboardButton(text="📦 Jack-in-the-Box", callback_data="Jack-in-the-Box:JackInTheBox"),
+        InlineKeyboardButton(text="🐰 Jelly Bunny", callback_data="Jelly Bunny:JellyBunny")
     ],
     [
-        InlineKeyboardButton(text="❌ Cancel", callback_data="cancel")
-    ]
-])
-
-reasons_for_user_en = InlineKeyboardMarkup(row_width=2, inline_keyboard=[
-    [
-        InlineKeyboardButton(text="🚫 Spam", callback_data="spam_user_en|🚫 Spam"),
-        InlineKeyboardButton(text="🔒 Personal data", callback_data="personal_data_user_en|🔒 Personal data")
-
+        InlineKeyboardButton(text="🎩 Jester Hat", callback_data="Jester Hat:JesterHat"),
+        InlineKeyboardButton(text="🔔 Jingle Bells", callback_data="Jingle Bells:JingleBells")
     ],
     [
-        InlineKeyboardButton(text="😈 Trolling", callback_data="trolling_user_en|😈 Trolling"),
-        InlineKeyboardButton(text="🗑️ Delete sessions", callback_data="delete_sessions_user_en|🗑️ Delete sessions")
+        InlineKeyboardButton(text="🐸 Kissed Frog", callback_data="Kissed Frog:KissedFrog"),
+        InlineKeyboardButton(text="🍭 Lol Pop", callback_data="Lol Pop:LolPop")
     ],
     [
-        InlineKeyboardButton(text="💎 Premium", callback_data="premium_user_en|💎 Premium"),
-        InlineKeyboardButton(text="🌐 Virtual number", callback_data="virtual_number_user_en|🌐 Virtual number")
-    ]
-])
-
-reasons_for_channel_en = InlineKeyboardMarkup(row_width=2, inline_keyboard=[
-    [
-        InlineKeyboardButton(text="🔐 Personal data in chahnel", callback_data="personal_data_channel_en|🔐 Personal data in chahnel"),
-        InlineKeyboardButton(text="🐾 Flaying", callback_data="flaying_channel_en|🐾 Flaying")
+        InlineKeyboardButton(text="🎒 Loot Bag", callback_data="Loot Bag:LootBag"),
+        InlineKeyboardButton(text="🕯️ Love Candle", callback_data="Love Candle:LoveCandle")
     ],
     [
-        InlineKeyboardButton(text="🚫 CP", callback_data="cp_channel_en|🚫 CP"),
-        InlineKeyboardButton(text="📜 Price-list (DOX & SWAT)", callback_data="price_channel_en|📜 Price-list (DOX & SWAT)")
+        InlineKeyboardButton(text="💖 Love Potion", callback_data="Love Potion:LovePotion"),
+        InlineKeyboardButton(text="🐍 Lunar Snake", callback_data="Lunar Snake:LunarSnake")
     ],
     [
-        InlineKeyboardButton(text="🔞 Pornography (18+)", callback_data="pornography_channel_en|🔞 Pornography (18+)"),
-        InlineKeyboardButton(text="🩸 Violence", callback_data="violence_channel_en|🩸 Violence")
-    ]
-])
-
-reasons_for_bot_en = InlineKeyboardMarkup(inline_keyboard=[
-    [
-        InlineKeyboardButton(text="🕵️‍♂️ Osint bot", callback_data="osint_bot_en|🕵️‍♂️ Osint bot")
-    ]
-])
-
-confirm_mailing_yes_no_en = InlineKeyboardMarkup(row_width=2, inline_keyboard=[
-    [
-        InlineKeyboardButton(text="✅ Yes", callback_data="confirm_mailing_yes"),
-        InlineKeyboardButton(text="❌ No", callback_data="confirm_mailing_no")
-    ]
-])
-
-confirm_gift_a_sub_yes_no_en = InlineKeyboardMarkup(row_width=2, inline_keyboard=[
-    [
-        InlineKeyboardButton(text="✅ Yes", callback_data="confirm_gift_a_sub_yes"),
-        InlineKeyboardButton(text="❌ No", callback_data="confirm_gift_a_sub_no")
-    ]
-])
-
-confirm_change_balance_yes_no_en = InlineKeyboardMarkup(row_width=2, inline_keyboard=[
-    [
-        InlineKeyboardButton(text="✅ Yes", callback_data="confirm_change_balance_yes"),
-        InlineKeyboardButton(text="❌ No", callback_data="confirm_change_balance_no")
-    ]
-])
-
-confirm_add_balance_yes_no_en = InlineKeyboardMarkup(row_width=2, inline_keyboard=[
-    [
-        InlineKeyboardButton(text="✅ Yes", callback_data="confirm_add_balance_yes"),
-        InlineKeyboardButton(text="❌ No", callback_data="confirm_add_balance_no")
-    ]
-])
-
-confirm_pay_yes_no_en = InlineKeyboardMarkup(row_width=2, inline_keyboard=[
-    [
-        InlineKeyboardButton(text="✅ Yes", callback_data="confirm_pay_yes"),
-        InlineKeyboardButton(text="❌ No", callback_data="confirm_pay_no")
-    ]
-])
-
-payment_systems_en = InlineKeyboardMarkup(inline_keyboard=[
-    [
-        InlineKeyboardButton(text="💳 Crypto Bot", callback_data="cryptobot_payment|💳 Crypto Bot")
-    ]
-])
-
-cancel_en = InlineKeyboardMarkup(inline_keyboard=[
-    [
-        InlineKeyboardButton(text="❌ Cancel", callback_data="cancel")
-    ]
-])
-
-repeat_en = InlineKeyboardMarkup(inline_keyboard=[
-    [
-        InlineKeyboardButton(text="🔄 Repeat", callback_data="start")
-    ]
-])
-
-stop_en = InlineKeyboardMarkup(inline_keyboard=[
-    [
-        InlineKeyboardButton(text="⛔ Stop mailing", callback_data="stop")
-    ]
-])
-
-pay_en = InlineKeyboardMarkup(inline_keyboard=[
-    [
-        InlineKeyboardButton(text="🛒 Go to payment", callback_data="pay")
+        InlineKeyboardButton(text="🎃 Mad Pumpkin", callback_data="Mad Pumpkin:MadPumpkin"),
+        InlineKeyboardButton(text="🍷 Magic Potion", callback_data="Magic Potion:MagicPotion")
     ],
     [
-        InlineKeyboardButton(text="❌ Cancel", callback_data="cancel")
+        InlineKeyboardButton(text="🏆 Mini Oscar", callback_data="Mini Oscar:MiniOscar"),
+        InlineKeyboardButton(text="🐾 Neko Helmet", callback_data="Neko Helmet:NekoHelmet")
+    ],
+    [
+        InlineKeyboardButton(text="🎇 Party Sparkler", callback_data="Party Sparkler:PartySparkler"),
+        InlineKeyboardButton(text="💐 Perfume Bottle", callback_data="Perfume Bottle:PerfumeBottle")
+    ],
+    [
+        InlineKeyboardButton(text="🐸 Plush Pepe", callback_data="Plush Pepe:PlushPepe"),
+        InlineKeyboardButton(text="🍑 Precious Peach", callback_data="Precious Peach:PreciousPeach")
+    ],
+    [
+        InlineKeyboardButton(text="🎶 Record Player", callback_data="Record Player:RecordPlayer"),
+        InlineKeyboardButton(text="🌸 Sakura Flower", callback_data="Sakura Flower:SakuraFlower")
+    ],
+    [
+        InlineKeyboardButton(text="🎅 Santa Hat", callback_data="Santa Hat:SantaHat"),
+        InlineKeyboardButton(text="😺 Scared Cat", callback_data="Scared Cat:ScaredCat")
+    ],
+    [
+        InlineKeyboardButton(text="🗣️ Sharp Tongue", callback_data="Sharp Tongue:SharpTongue"),
+        InlineKeyboardButton(text="💍 Signet Ring", callback_data="Signet Ring:SignetRing")
+    ],
+    [
+        InlineKeyboardButton(text="💀 Skull Flower", callback_data="Skull Flower:SkullFlower"),
+        InlineKeyboardButton(text="🔔 Sleigh Bell", callback_data="Sleigh Bell:SleighBell")
+    ],
+    [
+        InlineKeyboardButton(text="🌍 Snow Globe", callback_data="Snow Globe:SnowGlobe"),
+        InlineKeyboardButton(text="🧤 Snow Mittens", callback_data="Snow Mittens:SnowMittens")
+    ],
+    [
+        InlineKeyboardButton(text="🍷 Spiced Wine", callback_data="Spiced Wine:SpicedWine"),
+        InlineKeyboardButton(text="🍄 Spy Agaric", callback_data="Spy Agaric:SpyAgaric")
+    ],
+    [
+        InlineKeyboardButton(text="📓 Star Notepad", callback_data="Star Notepad:StarNotepad"),
+        InlineKeyboardButton(text="⌚ Swiss Watch", callback_data="Swiss Watch:SwissWatch")
+    ],
+    [
+        InlineKeyboardButton(text="🎮 Tama Gadget", callback_data="Tama Gadget:TamaGadget"),
+        InlineKeyboardButton(text="🎩 Top Hat", callback_data="Top Hat:TopHat")
+    ],
+    [
+        InlineKeyboardButton(text="🐻 Toy Bear", callback_data="Toy Bear:ToyBear"),
+        InlineKeyboardButton(text="💔 Trapped Heart", callback_data="Trapped Heart:TrappedHeart")
+    ],
+    [
+        InlineKeyboardButton(text="🚬 Vintage Cigar", callback_data="Vintage Cigar:VintageCigar"),
+        InlineKeyboardButton(text="🪆 Voodoo Doll", callback_data="Voodoo Doll:VoodooDoll")
+    ],
+    [
+        InlineKeyboardButton(text="🌲 Winter Wreath", callback_data="Winter Wreath:WinterWreath"),
+        InlineKeyboardButton(text="🎩 Witch Hat", callback_data="Witch Hat:WitchHat")
+    ],
+    [
+        InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_menu")
     ]
 ])
 
-change_language_en = InlineKeyboardMarkup(row_width=2, inline_keyboard=[
+search_methods = InlineKeyboardMarkup(inline_keyboard=[
     [
-        InlineKeyboardButton(text="🇷🇺 Русский", callback_data="select_language_ru"),
-        InlineKeyboardButton(text="🇺🇸 English", callback_data="select_language_en")
+        InlineKeyboardButton(text="🎁 Модель", callback_data="Модель 🎁"),
+        InlineKeyboardButton(text="🖼️ Фон", callback_data="Фон 🖼️")
+    ],
+    [
+        InlineKeyboardButton(text="🌈 Модель + Фон", callback_data="Модель + Фон 🌈")
+    ],
+    [
+        InlineKeyboardButton(text="🎨 Узор", callback_data="Узор 🎨"),
+        InlineKeyboardButton(text="🔢 Номер", callback_data="Номер 🔢")
+    ],
+    [
+        InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_menu")
+    ]
+])
+
+global_search_methods = InlineKeyboardMarkup(inline_keyboard=[
+    [
+        InlineKeyboardButton(text="🖼️ Фон", callback_data="Фон 🖼️")
+    ],
+    [
+        InlineKeyboardButton(text="🌈 Фон + Узор", callback_data="Фон + Узор 🌈")
+    ],
+    [
+        InlineKeyboardButton(text="🎨 Узор", callback_data="Узор 🎨"),
+    ],
+    [
+        InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_menu")
+    ]
+])
+
+back_to_menu = InlineKeyboardMarkup(inline_keyboard=[
+    [
+        InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_menu")
+    ]
+])
+
+info = InlineKeyboardMarkup(inline_keyboard=[
+    [
+        InlineKeyboardButton(text="👨‍💻 Разработчик", url="https://t.me/danbesy")
+    ],
+    [
+        InlineKeyboardButton(text="📢 Telegram канал", url="https://t.me/Danbesy_Dev")
+    ],
+    [
+        InlineKeyboardButton(text="💻 GitHub разработчика", url="https://github.com/Danbesy")
+    ]
+])
+
+send_menu = InlineKeyboardMarkup(inline_keyboard=[
+    [
+        InlineKeyboardButton(text="⚡ Без ссылки на пользователя", callback_data="no_owner")
+    ],
+    [
+        InlineKeyboardButton(text="🔗 С ссылкой на пользователя", callback_data="with_owner")
     ]
 ])

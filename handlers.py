@@ -15,31 +15,28 @@
 
 import logging
 import asyncio
-import time
-import uuid
+import re
+import os
+import random
+import aiohttp
+import ssl
+import certifi
+import tempfile
 import keyboards as kb
 from config import *
 from db import *
-from datetime import datetime
+from datetime import *
+from bs4 import BeautifulSoup
 from aiogram import Bot, F, Router
-from aiogram.filters import Command, CommandStart
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.filters import CommandStart
+from aiogram.types import Message, CallbackQuery, FSInputFile
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiosmtplib import SMTP
-from aiocryptopay import AioCryptoPay, Networks
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 
-# Настройки бота // Bot settings
 bot = Bot(TOKEN)
 
 router = Router()
 
-# Иницилизация CryptoPay // Initialization of CryptoPay
-acp = AioCryptoPay(token=CRYPTOPAY_TOKEN, network=Networks.MAIN_NET)
-
-# Логирование // # Logging
 logging.basicConfig(level=logging.INFO)
 
 @router.message(CommandStart())
@@ -47,1838 +44,1067 @@ async def cmd_start(message: Message, state: FSMContext):
 
     await state.clear()
 
-    await init_users_db()
-    await init_logs_payments_db()
-
     user_id = message.from_user.id
     user_link = f'tg://user?id={user_id}'
 
-    user_language = await get_user_language(user_id)
+    if user_id in ADMINS:
+        await message.answer(
+            f"<b>👋 Приветствую, </b><a href='{user_link}'>{message.from_user.full_name}</a> !\n\n"
+            "<b>Добро пожаловать в мир коллекционных подарков Telegram! 🎁</b>\n\n"
+            "<b>Мы поможем вам найти редкие и уникальные модели в личных коллекциях пользователей. 🚀</b>\n\n"
+            "<b>Откройте для себя новые возможности и легко находите то, что ищете! 🌟</b>\n\n"
+            "<b>Используйте кнопки ниже, чтобы начать. 💼</b>\n\n",
+            parse_mode="HTML",
+            reply_markup=kb.main_admin)  
+    else:
+        await message.answer(
+            f"<b>👋 Приветствую, </b><a href='{user_link}'>{message.from_user.full_name}</a> !\n\n"
+            "<b>Добро пожаловать в мир коллекционных подарков Telegram! 🎁</b>\n\n"
+            "<b>Мы поможем вам найти редкие и уникальные модели в личных коллекциях пользователей. 🚀</b>\n\n"
+            "<b>Откройте для себя новые возможности и легко находите то, что ищете! 🌟</b>\n\n"
+            "<b>Используйте кнопки ниже, чтобы начать. 💼</b>\n\n",
+            parse_mode="HTML",
+            reply_markup=None)
 
-    if user_language == "ru":
-        if user_id in ADMINS:
-            await message.answer(
-                f"<b>👋 Приветствую, </b><a href='{user_link}'>{message.from_user.full_name}</a> !\n\n"
-                "<b>Добро пожаловать в бота для автоматической отправки жалоб в Telegram! 🚀</b>\n\n"
-                "<b>Используйте кнопки ниже, чтобы начать. 💼</b>",
-                parse_mode="HTML",
-                reply_markup=kb.main_admin)  
-        else:
-            await message.answer(
-                f"<b>👋 Приветствую, </b><a href='{user_link}'>{message.from_user.full_name}</a> !\n\n"
-                "<b>Добро пожаловать в бота для автоматической отправки жалоб в Telegram! 🚀</b>\n\n"
-                "<b>Используйте кнопки ниже, чтобы начать. 💼</b>",
-                parse_mode="HTML",
-                reply_markup=kb.main)
-
-    elif user_language == "en":
-        if user_id in ADMINS:
-            await message.answer(
-                f"<b>👋 Hello, </b><a href='{user_link}'>{message.from_user.full_name}</a> !\n\n"
-                "<b>Welcome to the bot for automatic complaint submissions in Telegram! 🚀</b>\n\n"
-                "<b>Use the buttons below to get started. 💼</b>",
-                parse_mode="HTML",
-                reply_markup=kb.main_admin_en)
-        else:
-            await message.answer(
-                f"<b>👋 Hello, </b><a href='{user_link}'>{message.from_user.full_name}</a> !\n\n"
-                "<b>Welcome to the bot for automatic complaint submissions in Telegram! 🚀</b>\n\n"
-                "<b>Use the buttons below to get started. 💼</b>",
-                parse_mode="HTML",
-                reply_markup=kb.main_en)
-
-    if not await user_exists(user_id):
-        registration_date = datetime.now().strftime('%d.%m.%Y %H:%M:%S')
-        await add_user(user_id, registration_date)
-
-@router.callback_query(F.data == "menu")
-async def menu(callback: CallbackQuery, state: FSMContext):
-
-    await callback.answer()
+@router.callback_query(F.data == "back_to_menu")
+async def back_to_menu_button(callback: CallbackQuery, state: FSMContext):
 
     await state.clear()
 
     user_id = callback.from_user.id
     user_link = f'tg://user?id={user_id}'
 
-    user_language = await get_user_language(user_id)
-
-    if user_language == "ru":
-        if user_id in ADMINS:
-            await callback.message.answer(
-                f"<b>👋 Приветствую, </b><a href='{user_link}'>{callback.from_user.full_name}</a> !\n\n"
-                "<b>Добро пожаловать в бота для автоматической отправки жалоб в Telegram! 🚀</b>\n\n"
-                "<b>Используйте кнопки ниже, чтобы начать. 💼</b>",
-                parse_mode="HTML",
-                reply_markup=kb.main_admin)  
-        else:
-            await callback.message.answer(
-                f"<b>👋 Приветствую, </b><a href='{user_link}'>{callback.from_user.full_name}</a> !\n\n"
-                "<b>Добро пожаловать в бота для автоматической отправки жалоб в Telegram! 🚀</b>\n\n"
-                "<b>Используйте кнопки ниже, чтобы начать. 💼</b>",
-                parse_mode="HTML",
-                reply_markup=kb.main)
-
-    elif user_language == "en":
-        if user_id in ADMINS:
-            await callback.message.answer(
-                f"<b>👋 Hello, </b><a href='{user_link}'>{callback.from_user.full_name}</a>!\n\n"
-                "<b>Welcome to the bot for automatic complaint submissions in Telegram! 🚀</b>\n\n"
-                "<b>Use the buttons below to get started. 💼</b>",
-                parse_mode="HTML",
-                reply_markup=kb.main_admin_en)  
-        else:
-            await callback.message.answer(
-                f"<b>👋 Hello, </b><a href='{user_link}'>{callback.from_user.full_name}</a>!\n\n"
-                "<b>Welcome to the bot for automatic complaint submissions in Telegram! 🚀</b>\n\n"
-                "<b>Use the buttons below to get started. 💼</b>",
-                parse_mode="HTML",
-                reply_markup=kb.main_en)
-
-class Mailing(StatesGroup):
-    category = State()
-    confirm = State()
-
-class ReportUser(StatesGroup):
-    username = State()
-    telegram_id = State()
-    chat_link = State()
-    link_for_user = State()
-    reasons = State()
-
-@router.callback_query(F.data == "start")
-async def start(callback: CallbackQuery, state: FSMContext):
-
-    await callback.answer()
-
-    user_id = callback.from_user.id
-
-    subscription_datetime = await get_subscription_datetime(user_id)
-
-    current_timestamp = int(time.time())
-
-    if subscription_datetime > current_timestamp or user_id in ADMINS:
-
-        user_language = await get_user_language(user_id)
-
-        if user_language == "ru":
-
-            await callback.answer()
-
-            await callback.message.answer(
-                "<b>📂 Выберите нужную категорию, для отправки жалоб:</b>",
-                parse_mode="HTML",
-                reply_markup=kb.category)
-            await state.set_state(Mailing.category)
-
-        elif user_language == "en":
-
-            await callback.answer()
-
-            await callback.message.answer(
-                "<b>📂 Choose the necessary category to file complaints:</b>",
-                parse_mode="HTML",
-                reply_markup=kb.category_en)
-            await state.set_state(Mailing.category)
+    if user_id in ADMINS:
+        await callback.message.answer(
+            f"<b>👋 Приветствую, </b><a href='{user_link}'>{callback.from_user.full_name}</a> !\n\n"
+            "<b>Добро пожаловать в мир коллекционных подарков Telegram! 🎁</b>\n\n"
+            "<b>Мы поможем вам найти редкие и уникальные модели в личных коллекциях пользователей. 🚀</b>\n\n"
+            "<b>Откройте для себя новые возможности и легко находите то, что ищете! 🌟</b>\n\n"
+            "<b>Используйте кнопки ниже, чтобы начать. 💼</b>\n\n",
+            parse_mode="HTML",
+            reply_markup=kb.main_admin)  
     else:
-        await callback.answer()
-
         await callback.message.answer(
-            "<b>⛔ Доступ запрещен!</b>\n\n"
-            "<b>У вас отсутствует активная подписка. Пожалуйста, оформите подписку, чтобы получить доступ.</b>",
+            f"<b>👋 Приветствую, </b><a href='{user_link}'>{callback.from_user.full_name}</a> !\n\n"
+            "<b>Добро пожаловать в мир коллекционных подарков Telegram! 🎁</b>\n\n"
+            "<b>Мы поможем вам найти редкие и уникальные модели в личных коллекциях пользователей. 🚀</b>\n\n"
+            "<b>Откройте для себя новые возможности и легко находите то, что ищете! 🌟</b>\n\n"
+            "<b>Используйте кнопки ниже, чтобы начать. 💼</b>\n\n",
             parse_mode="HTML",
-            reply_markup=kb.subscription_buy)
+            reply_markup=kb.main)
 
-@router.message(Command("language"))
-async def change_language(message: Message):
-    user_id = message.from_user.id
+class GiftSearch(StatesGroup):
+    waiting_for_gift_name = State()
+    waiting_for_search_method = State()
+    waiting_for_model_name = State()
+    waiting_for_backdrop_name = State()
+    waiting_for_model_and_backdrop_name = State()
+    waiting_for_symbol_name = State()
+    waiting_for_number = State()
+    waiting_for_confirm = State()
 
-    user_language = await get_user_language(user_id)
-
-    if user_language == "ru":
-        await message.answer(
-            "<b>🌐 Выберите язык для использования бота:</b>",
-            parse_mode="HTML",
-            reply_markup=kb.change_language_ru)
-    elif user_language == "en":
-        await message.answer(
-            "<b>🌐 Select a language to use the bot:</b>",
-            parse_mode="HTML",
-            reply_markup=kb.change_language_en)
-
-@router.callback_query(F.data == "select_language_ru")
-async def set_language_ru(callback: CallbackQuery):
-
-    await callback.answer("Вы успешно выбрали русский язык для использования бота! 🇷🇺")
-
-    user_id = callback.from_user.id
-
-    await select_language_ru(user_id)
-
-@router.callback_query(F.data == "select_language_en")
-async def set_language_en(callback: CallbackQuery):
-
-    await callback.answer("You have successfully selected English to use the bot! 🇺🇸")
-
-    user_id = callback.from_user.id
-
-    await select_language_en(user_id)
-
-@router.callback_query(F.data == "report_user")
-async def report_user(callback: CallbackQuery, state: FSMContext):
-
-    await callback.answer()
-
-    user_id = callback.from_user.id
-
-    user_language = await get_user_language(user_id)
-
-    if user_language == "ru":
-        await callback.message.answer(
-            "<b>📝 Для начала введите Username пользователя:</b>",
-            parse_mode="HTML",  
-            reply_markup=kb.cancel)
-
-        await state.set_state(ReportUser.username)
-
-    elif user_language == "en":
-        await callback.message.answer(
-            "<b>📝 To get started, enter the user's Username:</b>",
-            parse_mode="HTML",  
-            reply_markup=kb.cancel_en)
-
-        await state.set_state(ReportUser.username)
-
-@router.message(ReportUser.username)
-async def get_username(message: Message, state: FSMContext):
-
-    username = message.text
-    await state.update_data(username=username)
-
-    user_id = message.from_user.id
-    user_language = await get_user_language(user_id)
-
-    if user_language == "ru":
-        await message.answer(
-            f"<b>👤 Введенный Вами Username:</b> <code>{username}</code>\n\n"
-            "<b>📝 Теперь введите Telegram ID:</b>",
-            parse_mode="HTML",
-            reply_markup=kb.cancel)
-
-        await state.set_state(ReportUser.telegram_id)
-
-    elif user_language == "en":
-        await message.answer(
-            f"<b>👤 The Username you entered:</b> <code>{username}</code>\n\n"
-            "<b>📝 Now enter the Telegram ID:</b>",
-            parse_mode="HTML",
-            reply_markup=kb.cancel_en)
-
-        await state.set_state(ReportUser.telegram_id)
-
-@router.message(ReportUser.telegram_id)
-async def get_telegram_id(message: Message, state: FSMContext):
-
-    telegram_id = message.text
-    await state.update_data(telegram_id=telegram_id)
-
-    data = await state.get_data()
-    username = data.get('username')
-
-    user_id = message.from_user.id
-    user_language = await get_user_language(user_id)
-
-    if user_language == "ru":
-        await message.answer(
-            f"<b>👤 Username:</b> <code>{username}</code>\n"
-            f"<b>🆔 Telegram ID:</b> <code>{telegram_id}</code>\n\n"
-            "<b>🔗 Введите ссылку (@username) или ID на чат с нарушением:</b>",
-            parse_mode="HTML",
-            reply_markup=kb.cancel)
-
-        await state.set_state(ReportUser.chat_link)
-
-    elif user_language == "en":
-        await message.answer(
-            f"<b>👤 Username:</b> <code>{username}</code>\n"
-            f"<b>🆔 Telegram ID:</b> <code>{telegram_id}</code>\n\n"
-            "<b>🔗 Enter the link (@username) or ID of the chat with the violation:</b>",
-            parse_mode="HTML",
-            reply_markup=kb.cancel_en)
-
-        await state.set_state(ReportUser.chat_link)
-
-@router.message(ReportUser.chat_link)
-async def get_chat_link(message: Message, state: FSMContext):
-
-    chat_link = message.text
-    await state.update_data(chat_link=chat_link)
-
-    data = await state.get_data()
-    username = data.get('username')
-    telegram_id = data.get('telegram_id')
-
-    user_id = message.from_user.id
-    user_language = await get_user_language(user_id)
-
-    if user_language == "ru":
-        await message.answer(
-            f"<b>👤 Username:</b> <code>{username}</code>\n"
-            f"<b>🆔 Telegram ID:</b> <code>{telegram_id}</code>\n"
-            f"<b>🔗 Ссылка на чат:</b> <code>{chat_link}</code>\n\n"
-            "<b>⚠️ Теперь укажите ссылку на нарушение:</b>",
-            parse_mode="HTML",
-            reply_markup=kb.cancel)
-
-        await state.set_state(ReportUser.link_for_user)
-
-    elif user_language == "en":
-        await message.answer(
-            f"<b>👤 Username:</b> <code>{username}</code>\n"
-            f"<b>🆔 Telegram ID:</b> <code>{telegram_id}</code>\n"
-            f"<b>🔗 Chat link:</b> <code>{chat_link}</code>\n\n"
-            "<b>⚠️ Now provide the link to the violation:</b>",
-            parse_mode="HTML",
-            reply_markup=kb.cancel_en)
-
-        await state.set_state(ReportUser.link_for_user)
-
-@router.message(ReportUser.link_for_user)
-async def get_link(message: Message, state: FSMContext):
+@router.callback_query(F.data == "gifts_search")
+async def gifts_search_button(callback: CallbackQuery, state: FSMContext):
+    await callback.message.answer(
+        "<b>🎁 Выберите подарок для поиска, который вас интересует!</b>\n\n"
+        "<b>✨ Доступные варианты:\n</b>"
+        "<b>├ <a href='https://t.me/addemoji/AstralShardSkins'>Astral Shard 🌌</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/BDayCandleSkins'>B-Day Candle 🕯️</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/BerryBoxSkins'>Berry Box 🍓</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/BunnyMuffinSkins'>Bunny Muffin 🧁</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/CandyCaneSkins'>Candy Cane 🍬</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/CookieHeartSkins'>Cookie Heart 🍪</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/CrystalBallSkins'>Crystal Ball 🔮</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/DeskCalendarSkins'>Desk Calendar 📅</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/DiamondRingSkins'>Diamond Ring 💍</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/DurovsCapSkins'>Durov’s Cap 🧢</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/ElectricSkullSkins'>Electric Skull 💀</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/EternalCandleSkins'>Eternal Candle 🕯️</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/EternalRoseSkins'>Eternal Rose 🌹</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/EvilEyeSkins'>Evil Eye 👁️</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/FlyingBroomSkins'>Flying Broom 🧹</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/GenieLampSkins'>Genie Lamp 🛋️</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/GingerCookieSkins'>Ginger Cookie 🍪</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/HangingStarSkins'>Hanging Star ⭐</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/HexPotSkins'>Hex Pot 🪴</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/HomemadeCakeSkins'>Homemade Cake 🍰</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/HypnoLollipopSkins'>Hypno Lollipop 🍭</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/IonGemSkins'>Ion Gem 💎</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/JackInTheBoxSkins'>Jack-in-the-Box 📦</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/JellyBunnySkins'>Jelly Bunny 🐰</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/JesterHatSkins'>Jester Hat 🎩</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/JingleBellsSkins'>Jingle Bells 🔔</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/KissedFrogSkins'>Kissed Frog 🐸</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/LolPopSkins'>Lol Pop 🍭</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/LootBagSkins'>Loot Bag 🎒</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/LoveCandleSkins'>Love Candle 🕯️</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/LovePotionSkins'>Love Potion 💖</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/LunarSnakeSkins'>Lunar Snake 🐍</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/MadPumpkinSkins'>Mad Pumpkin 🎃</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/MagicPotionSkins'>Magic Potion 🍷</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/MiniOscarSkins'>Mini Oscar 🏆</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/NekoHelmetSkins'>Neko Helmet 🐾</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/PartySparklerSkins'>Party Sparkler 🎇</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/PerfumeBottleSkins'>Perfume Bottle 💐</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/PlushPepeSkins'>Plush Pepe 🐸</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/PreciousPeachSkins'>Precious Peach 🍑</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/RecordPlayerSkins'>Record Player 🎶</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/SakuraFlowerSkins'>Sakura Flower 🌸</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/SantaHatSkins'>Santa Hat 🎅</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/ScaredCatSkins'>Scared Cat 😺</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/SharpTongueSkins'>Sharp Tongue 🗣️</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/SignetRingSkins'>Signet Ring 💍</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/SkullFlowerSkins'>Skull Flower 💀</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/SleighBellSkins'>Sleigh Bell 🔔</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/SnowGlobeSkins'>Snow Globe 🌍</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/SnowMittensSkins'>Snow Mittens 🧤</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/SpicedWineSkins'>Spiced Wine 🍷</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/SpyAgaricSkins'>Spy Agaric 🍄</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/StarNotepadSkins'>Star Notepad 📓</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/SwissWatchSkins'>Swiss Watch ⌚</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/TamaGadgetSkins'>Tama Gadget 🎮</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/TopHatSkins'>Top Hat 🎩</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/ToyBearSkins'>Toy Bear 🐻</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/TrappedHeartSkins'>Trapped Heart 💔</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/VintageCigarSkins'>Vintage Cigar 🚬</a></b>\n"
+        "<b>├ <a href='https://t.me/addemoji/VoodooDollSkins'>Voodoo Doll 🪆</a></b>\n"
+        "<b>└ <a href='https://t.me/addemoji/WinterWreathSkins'>Winter Wreath 🌲</a></b>\n"
+        "<b>└ <a href='https://t.me/addemoji/WitchHatSkins'>Witch Hat 🎩</a></b>\n",
+        parse_mode="HTML",
+        reply_markup=kb.gifts_list,
+        disable_web_page_preview=True)
     
-    link_for_user = message.text
-    await state.update_data(link_for_user=link_for_user)
+    await state.set_state(GiftSearch.waiting_for_gift_name)
 
-    data = await state.get_data()
-
-    username = data.get('username')
-    telegram_id = data.get('telegram_id')
-    chat_link = data.get('chat_link')
-
-    user_id = message.from_user.id
-    user_language = await get_user_language(user_id)
-
-    if user_language == "ru":
-        await message.answer(
-            f"<b>👤 Username:</b> <code>{username}</code>\n"
-            f"<b>🆔 Telegram ID:</b> <code>{telegram_id}</code>\n"
-            f"<b>🔗 Ссылка на чат:</b> <code>{chat_link}</code>\n"
-            f"<b>⚠️ Ссылка на нарушение:</b> <code>{link_for_user}</code>\n\n"
-            "<b>📋 Выберите причину жалобы:</b>",
-            parse_mode="HTML",
-            reply_markup=kb.reasons_for_user)
-
-        await state.set_state(ReportUser.reasons)
-
-    elif user_language == "en":
-        await message.answer(
-            f"<b>👤 Username:</b> <code>{username}</code>\n"
-            f"<b>🆔 Telegram ID:</b> <code>{telegram_id}</code>\n"
-            f"<b>🔗 Chat link:</b> <code>{chat_link}</code>\n"
-            f"<b>⚠️ Violation link:</b> <code>{link_for_user}</code>\n\n"
-            "<b>📋 Choose the reason for the report:</b>",
-            parse_mode="HTML",
-            reply_markup=kb.reasons_for_user_en)
-
-        await state.set_state(ReportUser.reasons)
-
-@router.callback_query(ReportUser.reasons)
-async def get_reason(callback: CallbackQuery, state: FSMContext):
+@router.callback_query(GiftSearch.waiting_for_gift_name)
+async def get_gift_name(callback: CallbackQuery, state: FSMContext):
 
     callback_data = callback.data
-    reason = callback_data.split("|")[1]
-    await state.update_data(reason=reason)
 
-    data = await state.get_data()
-    username = data.get('username')
-    telegram_id = data.get('telegram_id')
-    chat_link = data.get('chat_link')
-    link_for_user = data.get('link_for_user')
+    if callback_data == "back_to_menu":
+        await back_to_menu_button(callback, state)
 
-    user_id = callback.from_user.id
-    user_language = await get_user_language(user_id)
+    gift_name = callback_data.split(":")[0]
+    gift_emoji_link = callback_data.split(":")[1]
 
-    if user_language == "ru":
-        await callback.message.answer(
-            "<b>🔍 Пожалуйста, проверьте введенные данные:</b>\n\n"
-            f"<b>👤 Username:</b> <code>{username}</code>\n"
-            f"<b>🆔 Telegram ID:</b> <code>{telegram_id}</code>\n"
-            f"<b>🔗 Ссылка на чат:</b> <code>{chat_link}</code>\n"
-            f"<b>⚠️ Ссылка на нарушение:</b> <code>{link_for_user}</code>\n"
-            f"<b>📋 Причина жалобы:</b> <code>{reason}</code>\n\n"
-            "<b>➡️ Желаете продолжить?</b>",
-            parse_mode="HTML",
-            reply_markup=kb.confirm_mailing_yes_no)
-        
-        await state.set_state(Mailing.confirm)
+    await callback.message.answer(
+        f"<b>🎁 Выбран подарок: <a href='https://t.me/addemoji/{gift_emoji_link}Skins'>{gift_name}</a></b>\n\n"
+        "<b>🔍 Выберите способ поиска:</b>",
+        parse_mode="HTML",
+        reply_markup=kb.search_methods,
+        disable_web_page_preview=True)
 
-    elif user_language == "en":
-        await callback.message.answer(
-            "<b>🔍 Please check the entered information:</b>\n\n"
-            f"<b>👤 Username:</b> <code>{username}</code>\n"
-            f"<b>🆔 Telegram ID:</b> <code>{telegram_id}</code>\n"
-            f"<b>🔗 Chat link:</b> <code>{chat_link}</code>\n"
-            f"<b>⚠️ Violation link:</b> <code>{link_for_user}</code>\n"
-            f"<b>📋 Reason for the report:</b> <code>{reason}</code>\n\n"
-            "<b>➡️ Do you want to continue?</b>",
-            parse_mode="HTML",
-            reply_markup=kb.confirm_mailing_yes_no_en)
-        
-        await state.set_state(Mailing.confirm)
+    await state.update_data(gift_name=gift_name)
 
-class ReportChannel(StatesGroup):
-    channel = State()
-    link_for_channel = State()
-    reasons = State()
+    await state.set_state(GiftSearch.waiting_for_search_method)
 
-@router.callback_query(F.data == "report_channel")
-async def report_channel(callback: CallbackQuery, state: FSMContext):
-
-    await callback.answer()
-
-    user_id = callback.from_user.id
-    user_language = await get_user_language(user_id)
-
-    if user_language == "ru":
-        await callback.message.answer(
-            "<b>📝 Для начала введите ссылку на канал (@username) или его ID:</b>",
-            parse_mode="HTML",
-            reply_markup=kb.cancel)
-        
-        await state.set_state(ReportChannel.channel)
-
-    elif user_language == "en":
-        await callback.message.answer(
-            "<b>📝 To get started, enter the channel's link (@username) or its ID:</b>",
-            parse_mode="HTML",
-            reply_markup=kb.cancel_en)
-        
-        await state.set_state(ReportChannel.channel)
-
-@router.message(ReportChannel.channel)
-async def get_channel(message: Message, state: FSMContext):
-
-    channel = message.text  
-    await state.update_data(channel=channel)
-
-    user_id = message.from_user.id
-    user_language = await get_user_language(user_id)
-
-    if user_language == "ru":
-        await message.answer(
-            f"<b>🔗 Введенная Вами ссылка на канал:</b> <code>{channel}</code>\n\n"
-            "<b>⚠️ Теперь укажите ссылку на нарушение:</b>",
-            parse_mode="HTML",
-            reply_markup=kb.cancel)
-
-        await state.set_state(ReportChannel.link_for_channel)
-
-    elif user_language == "en":
-        await message.answer(
-            f"<b>🔗 The channel link you entered:</b> <code>{channel}</code>\n\n"
-            "<b>⚠️ Now please provide the violation link:</b>",
-            parse_mode="HTML",
-            reply_markup=kb.cancel_en)
-
-        await state.set_state(ReportChannel.link_for_channel)
-
-@router.message(ReportChannel.link_for_channel)
-async def get_link(message: Message, state: FSMContext):
-
-    link_for_channel = message.text
-    await state.update_data(link_for_channel=link_for_channel)
+@router.callback_query(GiftSearch.waiting_for_search_method)
+async def get_search_method(callback: CallbackQuery, state: FSMContext):
 
     data = await state.get_data()
 
-    channel = data.get('channel')
-
-    user_id = message.from_user.id
-    user_language = await get_user_language(user_id)
-
-    if user_language == "ru":
-        await message.answer(
-            f"<b>📢 Ссылка на канал:</b> <code>{channel}</code>\n"
-            f"<b>🔗 Ссылка на нарушение:</b> <code>{link_for_channel}</code>\n\n"
-            "<b>⚠️ Выберите причину жалобы:</b>",
-            parse_mode="HTML",
-            reply_markup=kb.reasons_for_channel)
-
-        await state.set_state(ReportChannel.reasons)
-
-    elif user_language == "en":
-        await message.answer(
-            f"<b>📢 Channel link:</b> <code>{channel}</code>\n"
-            f"<b>🔗 Violation link:</b> <code>{link_for_channel}</code>\n\n"
-            "<b>⚠️ Choose the reason for the report:</b>",
-            parse_mode="HTML",
-            reply_markup=kb.reasons_for_channel_en)
-
-        await state.set_state(ReportChannel.reasons)
-
-@router.callback_query(ReportChannel.reasons)
-async def get_reason(callback: CallbackQuery, state: FSMContext):
-
-    await callback.answer()
+    gift_name = data.get('gift_name')
 
     callback_data = callback.data
-    reason = callback_data.split("|")[1]
-    await state.update_data(reason=reason)
 
-    data = await state.get_data()
-    channel = data.get('channel')
-    link_for_channel = data.get('link_for_channel')
+    if callback_data == "back_to_menu":
+        await back_to_menu_button(callback, state)
 
-    user_id = callback.from_user.id
-    user_language = await get_user_language(user_id)
+    search_method = callback_data
 
-    if user_language == "ru":
-        await callback.message.answer(
-            "<b>🔍 Пожалуйста, проверьте введенные данные:</b>\n\n"
-            f"<b>📢 Ссылка на канал:</b> <code>{channel}</code>\n"
-            f"<b>🔗 Ссылка на нарушение:</b> <code>{link_for_channel}</code>\n"
-            f"<b>⚠️ Причина жалобы:</b> <code>{reason}</code>\n\n"
-            "<b>➡️ Желаете продолжить?</b>",
-            parse_mode="HTML",
-            reply_markup=kb.confirm_mailing_yes_no)
+    if search_method == "Модель 🎁":
+        text = "<b>🌟 Введите название модели для поиска:</b>"
+    elif search_method == "Фон 🖼️":
+        text = "<b>🌟 Введите название фона для поиска:</b>"
+    elif search_method == "Модель + Фон 🌈":
+        text = "<b>🌟 Введите название модели и фона для поиска:</b>"
+    elif search_method == "Узор 🎨":
+        text = "<b>🌟 Введите название узора для поиска:</b>"
+    elif search_method == "Номер 🔢":
+        text = "<b>🌟 Введите номер подарка или диапазон (например, 100-200) для поиска — оба числа включительно:</b>"
 
-        await state.set_state(Mailing.confirm)
-
-    elif user_language == "en":
-        await callback.message.answer(
-            "<b>🔍 Please review the information entered:</b>\n\n"
-            f"<b>📢 Channel link:</b> <code>{channel}</code>\n"
-            f"<b>🔗 Violation link:</b> <code>{link_for_channel}</code>\n"
-            f"<b>⚠️ Reason for the report:</b> <code>{reason}</code>\n\n"
-            "<b>➡️ Would you like to continue?</b>",
-            parse_mode="HTML",
-            reply_markup=kb.confirm_mailing_yes_no_en)
-
-        await state.set_state(Mailing.confirm)
-
-class ReportBot(StatesGroup):
-    username_bot = State()
-    reasons = State()
-
-@router.callback_query(F.data == "report_bot")
-async def report_bot(callback: CallbackQuery, state: FSMContext):
-
-    await callback.answer()
-
-    user_id = callback.from_user.id
-    user_language = await get_user_language(user_id)
-
-    if user_language == "ru":
-        await callback.message.answer(
-            "<b>📝 Введите Username бота:</b>",
-            parse_mode="HTML",
-            reply_markup=kb.cancel)
-
-        await state.set_state(ReportBot.username_bot)
-
-    elif user_language == "en":
-        await callback.message.answer(
-            "<b>📝 Enter the bot's Username:</b>",
-            parse_mode="HTML",
-            reply_markup=kb.cancel_en)
-
-        await state.set_state(ReportBot.username_bot)
-
-@router.message(ReportBot.username_bot)
-async def get_username_bot(message: Message, state: FSMContext):
-
-    username_bot = message.text
-    await state.update_data(username_bot=username_bot)
-
-    user_id = message.from_user.id
-    user_language = await get_user_language(user_id)
-
-    if user_language == "ru":
-        await message.answer(
-            f"<b>🤖 Введенный вами Username бота:</b> <code>{username_bot}</code>\n\n"
-            "<b>⚠️ Теперь выберите причину для жалобы:</b>",
-            parse_mode="HTML",
-            reply_markup=kb.reasons_for_bot)
-
-        await state.set_state(ReportBot.reasons)
-
-    elif user_language == "en":
-        await message.answer(
-            f"<b>🤖 The bot's Username you entered:</b> <code>{username_bot}</code>\n\n"
-            "<b>⚠️ Now select the reason for the report:</b>",
-            parse_mode="HTML",
-            reply_markup=kb.reasons_for_bot_en)
-
-        await state.set_state(ReportBot.reasons)
-
-@router.callback_query(ReportBot.reasons)
-async def get_reason(callback: CallbackQuery, state: FSMContext):
-
-    callback_data = callback.data
-    reason = callback_data.split("|")[1]
-    await state.update_data(reason=reason)
-
-    data = await state.get_data()
-    username_bot = data.get('username_bot')
-
-    user_id = callback.from_user.id
-    user_language = await get_user_language(user_id)
-
-    if user_language == "ru":
-        await callback.message.answer(
-            "<b>🔍 Пожалуйста, проверьте введенные данные:</b>\n\n"
-            f"<b>🤖 Username бота:</b> <code>{username_bot}</code>\n"
-            f"<b>⚠️ Причина жалобы:</b> <code>{reason}</code>\n\n"
-            "<b>➡️ Хотите продолжить?</b>",
-            parse_mode="HTML",
-            reply_markup=kb.confirm_mailing_yes_no)
-
-        await state.set_state(Mailing.confirm)
-
-    elif user_language == "en":
-        await callback.message.answer(
-            "<b>🔍 Please verify the entered data:</b>\n\n"
-            f"<b>🤖 Bot's Username:</b> <code>{username_bot}</code>\n"
-            f"<b>⚠️ Reason for the report:</b> <code>{reason}</code>\n\n"
-            "<b>➡️ Do you want to continue?</b>",
-            parse_mode="HTML",
-            reply_markup=kb.confirm_mailing_yes_no_en)
-
-        await state.set_state(Mailing.confirm)
-
-# Список почт для рассылки // Mailing list
-mailing_list = [
-    'sms@telegram.org',
-    'dmca@telegram.org',
-    'abuse@telegram.org',
-    'sticker@telegram.org',
-    'support@telegram.org'
-]
-
-# SMTP настройки // SMTP settings
-DELAY = 5 # Задержка в секундах // Delay in seconds
-
-@router.callback_query(F.data.startswith("confirm_mailing_"))
-async def confirm_callback(callback: CallbackQuery, state: FSMContext):
-
-    await callback.answer()
-
-    user_id = callback.from_user.id
-
-    user_language = await get_user_language(user_id)
-
-    data = await state.get_data()
-    username = data.get('username')
-    telegram_id = data.get('telegram_id')
-    chat_link = data.get('chat_link')
-    link_for_user = data.get('link_for_user')
-    channel = data.get('channel')
-    link_for_channel = data.get('link_for_channel')
-    username_bot = data.get('username_bot')
-    reason = data.get('reason')
-
-    # Словарь с текстами для репортов // Dictionary with texts for reports
-    REPORT_TEXTS = {
-    "spam_user": f"Здравствуйте, уважаемая поддержка. На вашей платформе я нашел пользователя, который отправляет много ненужных сообщений - СПАМ. Его юзернейм - {username}, его айди - {telegram_id}, ссылка на чат - {chat_link}, ссылка на нарушение/нарушения - {link_for_user}. Пожалуйста, примите меры по отношению к данному пользователю.",
-    "personal_data_user": f"Здравствуйте, уважаемая поддержка. На вашей платформе я нашел пользователя, который распространяет чужие данные без их согласия. Его юзернейм - {username}, его айди - {telegram_id}, ссылка на чат - {chat_link}, ссылка на нарушение/нарушения - {link_for_user}. Пожалуйста, примите меры по отношению к данному пользователю путем блокировки его акккаунта.",
-    "trolling_user": f"Здравствуйте, уважаемая поддержка Telegram. Я нашел пользователя, который открыто выражается нецензурной лексикой и спамит в чатах. Его юзернейм - {username}, его айди - {telegram_id}, ссылка на чат - {chat_link}, ссылка на нарушение/нарушения - {link_for_user}. Пожалуйста, примите меры по отношению к данному пользователю путем блокировки его акккаунта.",
-    "delete_sessions_user": f"Здравствуйте, уважаемая поддержка. Я случайно перешел по фишинговой ссылке и утерял доступ к своему аккаунту. Его юзернейм - {username}, его айди - {telegram_id}. Пожалуйста, удалите аккаунт или обнулите сессии",
-    "premium_user": f"Здравствуйте, уважаемая поддержка Telegram.! Аккаунт {username}, {telegram_id} приобрёл Premium подписку в вашем мессенджере, чтобы рассылать спам-сообщения и обходить ограничения Telegram. Прошу проверить данную жалобу и принять меры!",
-    "virtual_number_user": f"Здравствуйте, уважаемая поддержка Telegram! Аккаунт {username}, {telegram_id} использует виртуальный номер купленный на сайте по активации номеров. Отношения к номеру он не имеет, номер никак к нему не относится. Пожалуйста, разберитесь с этим. Заранее спасибо!",
-    "personal_data_channel": f"Здравствуйте, уважаемая поддержка Telegram. На вашей платформе я нашел канал, который распространяет личные данные невинных людей. Ссылка на канал - {channel}, Ссылка на нарушение - {link_for_channel}. Пожалуйста, заблокируйте данный канал.",
-    "flaying_channel": f"Здравствуйте, уважаемая поддержка Telegram. На вашей платформе я нашел канал который распространяет жестокое обращение с животными. Ссылка на канал - {channel}, Ссылка на нарушение - {link_for_channel}. Пожалуйста, заблокируйте данный канал.",
-    "cp_channel": f"Здравствуйте, уважаемая поддержка Telegram. На вашей платформе я нашел канал который распространяет порнографию с участием несовершеннолетних. Ссылка на канал - {channel}, Ссылка на нарушение - {link_for_channel}. Пожалуйста, заблокируйте данный канал.",
-    "price_channel": f"Здравствуйте, уважаемый модератор Telegram. Хочу вам пожаловаться на канал, который продает услуги доксинга и сваттинга. Ссылка на телеграмм канал: {channel} Ссылка на нарушение: {link_for_channel} Просьба заблокировать данный канал.",
-    "pornography_channel": f"Здравствуйте, уважаемая поддержка Telegram. Я нашел канал, который распространяет порнографический контент. Ссылка на канал - {channel}, Ссылка на нарушение - {link_for_channel}. Пожалуйста, примите меры по блокировке данного канала.",
-    "violence_channel": f"Здравствуйте, уважаемая поддержка Telegram. Я нашел канал, который распространяет контент, содержащий насилие или жестокое обращение. Ссылка на канал - {channel}, Ссылка на нарушение - {link_for_channel}. Пожалуйста, примите меры по блокировке данного канала.",
-    "osint_bot": f"Здравствуйте, уважаемая поддержка Telegram. На вашей платформе я нашел бота, который осуществляет поиск по личным данным ваших пользователей. Ссылка на бота - {username_bot}. Пожалуйста, разберитесь и заблокируйте данного бота.",
-
-    "spam_user_en": f"Здравствуйте, уважаемая поддержка. На вашей платформе я нашел пользователя, который отправляет много ненужных сообщений - СПАМ. Его юзернейм - {username}, его айди - {telegram_id}, ссылка на чат - {chat_link}, ссылка на нарушение/нарушения - {link_for_user}. Пожалуйста, примите меры по отношению к данному пользователю.",
-    "personal_data_user_en": f"Здравствуйте, уважаемая поддержка. На вашей платформе я нашел пользователя, который распространяет чужие данные без их согласия. Его юзернейм - {username}, его айди - {telegram_id}, ссылка на чат - {chat_link}, ссылка на нарушение/нарушения - {link_for_user}. Пожалуйста, примите меры по отношению к данному пользователю путем блокировки его акккаунта.",
-    "trolling_user_en": f"Здравствуйте, уважаемая поддержка Telegram. Я нашел пользователя, который открыто выражается нецензурной лексикой и спамит в чатах. Его юзернейм - {username}, его айди - {telegram_id}, ссылка на чат - {chat_link}, ссылка на нарушение/нарушения - {link_for_user}. Пожалуйста, примите меры по отношению к данному пользователю путем блокировки его акккаунта.",
-    "delete_sessions_user_en": f"Здравствуйте, уважаемая поддержка. Я случайно перешел по фишинговой ссылке и утерял доступ к своему аккаунту. Его юзернейм - {username}, его айди - {telegram_id}. Пожалуйста, удалите аккаунт или обнулите сессии",
-    "premium_user_en": f"Здравствуйте, уважаемая поддержка Telegram.! Аккаунт {username}, {telegram_id} приобрёл Premium подписку в вашем мессенджере, чтобы рассылать спам-сообщения и обходить ограничения Telegram. Прошу проверить данную жалобу и принять меры!",
-    "virtual_number_user_en": f"Здравствуйте, уважаемая поддержка Telegram! Аккаунт {username}, {telegram_id} использует виртуальный номер купленный на сайте по активации номеров. Отношения к номеру он не имеет, номер никак к нему не относится. Пожалуйста, разберитесь с этим. Заранее спасибо!",
-    "personal_data_channel_en": f"Здравствуйте, уважаемая поддержка Telegram. На вашей платформе я нашел канал, который распространяет личные данные невинных людей. Ссылка на канал - {channel}, Ссылка на нарушение - {link_for_channel}. Пожалуйста, заблокируйте данный канал.",
-    "flaying_channel_en": f"Здравствуйте, уважаемая поддержка Telegram. На вашей платформе я нашел канал который распространяет жестокое обращение с животными. Ссылка на канал - {channel}, Ссылка на нарушение - {link_for_channel}. Пожалуйста, заблокируйте данный канал.",
-    "cp_channel_en": f"Здравствуйте, уважаемая поддержка Telegram. На вашей платформе я нашел канал который распространяет порнографию с участием несовершеннолетних. Ссылка на канал - {channel}, Ссылка на нарушение - {link_for_channel}. Пожалуйста, заблокируйте данный канал.",
-    "price_channel_en": f"Здравствуйте, уважаемый модератор Telegram. Хочу вам пожаловаться на канал, который продает услуги доксинга и сваттинга. Ссылка на телеграмм канал: {channel} Ссылка на нарушение: {link_for_channel} Просьба заблокировать данный канал.",
-    "pornography_channel_en": f"Здравствуйте, уважаемая поддержка Telegram. Я нашел канал, который распространяет порнографический контент. Ссылка на канал - {channel}, Ссылка на нарушение - {link_for_channel}. Пожалуйста, примите меры по блокировке данного канала.",
-    "violence_channel_en": f"Здравствуйте, уважаемая поддержка Telegram. Я нашел канал, который распространяет контент, содержащий насилие или жестокое обращение. Ссылка на канал - {channel}, Ссылка на нарушение - {link_for_channel}. Пожалуйста, примите меры по блокировке данного канала.",
-    "osint_bot_en": f"Здравствуйте, уважаемая поддержка Telegram. На вашей платформе я нашел бота, который осуществляет поиск по личным данным ваших пользователей. Ссылка на бота - {username_bot}. Пожалуйста, разберитесь и заблокируйте данного бота."
-    }
-
-    # Маппинг для соответствия строк с эмодзи и другими значениями на правильные ключи в REPORT_TEXTS // Matching strings with emoji and other values ​​for keys in REPORT_TEXTS
-    reason_map = {
-        "🚫 Спам": "spam_user",
-        "🔒 Личные данные": "personal_data_user",
-        "😈 Троллинг": "trolling_user",
-        "🗑️ Снос сессий": "delete_sessions_user",
-        "💎 Премиум": "premium_user",
-        "🌐 Виртуальный номер": "virtual_number_user",
-        "🔐 Личные данные в ТГК": "personal_data_channel",
-        "🐾 Живодерство": "flaying_channel",
-        "🚫 ЦП": "cp_channel",
-        "📜 Прайс-лист (DOX & SWAT)": "price_channel",
-        "🔞 Порнография (18+)": "pornography_channel",
-        "🩸 Насилие": "violence_channel",
-        "🕵️‍♂️ Осинт бот": "osint_bot",
-        "📅 7 дней (70₽)": "7",
-        "📅 14 дней (140₽)": "14",
-        "📅 30 дней (210₽)": "30",
-        "📅 60 дней (420₽)": "60",
-
-        "🚫 Spam": "spam_user_en",
-        "🔒 Personal data": "personal_data_user_en",
-        "😈 Trolling": "trolling_user_en",
-        "🗑️ Delete sessions": "delete_sessions_user_en",
-        "💎 Premium": "premium_user_en",
-        "🌐 Virtual number": "virtual_number_user_en",
-        "🔐 Personal data in channel": "personal_data_channel_en",
-        "🐾 Animal cruelty": "animal_cruelty_channel_en",
-        "🚫 CP": "cp_channel_en",
-        "📜 Price-list (DOX & SWAT)": "price_channel_en",
-        "🔞 Pornography (18+)": "pornography_channel_en",
-        "🩸 Violence": "violence_channel_en",
-        "🕵️‍♂️ Osint bot": "osint_bot_en",
-        "📅 7 days (70₽)": "7",
-        "📅 14 days (140₽)": "14",
-        "📅 30 days (210₽)": "30",
-        "📅 60 days (420₽)": "60"
-    }
-
-    # Пример для добавления почты: // Example for adding mail:
+    await callback.message.answer(
+        f"<b>🎁 Подарок: {gift_name}</b>\n"
+        f"<b>🔍 Выбранный способ поиска: {search_method}</b>\n\n"
+        f"{text}\n"
+        "<i>💡 Пожалуйста, убедитесь, что данные введены корректно!</i>",
+        parse_mode="HTML")
     
-    # accounts = {
-    #     'mail1@gmail.com': {
-    #         'password': 'pass1',
-    #         'smtp_server': 'smtp.gmail.com',
-    #         'smtp_port': 465
-    #     },
-    #     'mail2@gmail.com': {
-    #         'password': 'pass2',
-    #         'smtp_server': 'smtp.gmail.com',
-    #         'smtp_port': 465
-    #     },
-    #     'mail3@gmail.com': {
-    #         'password': 'pass3',
-    #         'smtp_server': 'smtp.gmail.com',
-    #         'smtp_port': 465
-    #     },
-    #     # Продолжайте добавлять данные для остальных почт // Continue adding data for other mails
-    # }
+    await state.update_data(search_method=search_method)
 
-    accounts = {
-        'mail1@gmail.com': {
-            'password': 'pass1',
-            'smtp_server': 'smtp.gmail.com',
-            'smtp_port': 465
-        },
-        'mail2@gmail.com': {
-            'password': 'pass2',
-            'smtp_server': 'smtp.gmail.com',
-            'smtp_port': 465
-        },
-        'mail3@gmail.com': {
-            'password': 'pass3',
-            'smtp_server': 'smtp.gmail.com',
-            'smtp_port': 465
-        }
-    }
+    if search_method == "Модель 🎁":
+        await state.set_state(GiftSearch.waiting_for_model_name)
+    elif search_method == "Фон 🖼️":
+        await state.set_state(GiftSearch.waiting_for_backdrop_name)
+    elif search_method == "Модель + Фон 🌈":
+        await state.set_state(GiftSearch.waiting_for_model_and_backdrop_name)
+    elif search_method == "Узор 🎨":
+        await state.set_state(GiftSearch.waiting_for_symbol_name)
+    elif search_method == "Номер 🔢":
+        await state.set_state(GiftSearch.waiting_for_number)
 
-    async def send_email(account_email, recipient, subject, body):
-        account_info = accounts.get(account_email)
-        if not account_info:
-            raise ValueError(f"Конфигурация аккаунта для {account_email} не найдена")
+@router.message(GiftSearch.waiting_for_model_name)
+async def get_model_name(message: Message, state: FSMContext):
+    
+    data = await state.get_data()
 
-        password = account_info["password"]
-        smtp_server = account_info["smtp_server"]
-        smtp_port = account_info["smtp_port"]
+    gift_name = data.get('gift_name')
 
-        message = MIMEMultipart()
-        message["From"] = account_email
-        message["To"] = recipient
-        message["Subject"] = subject
-        message.attach(MIMEText(body, "plain"))
+    search_method = data.get('search_method')
 
-        async with SMTP(hostname=smtp_server, port=smtp_port, use_tls=True) as smtp:
-            await smtp.login(account_email, password)
-            await smtp.send_message(message)
+    model_name = message.text
 
-    async def distribute_emails(callback: CallbackQuery, reason, data):
-        global stop_mailing
-        stop_mailing = False
+    await message.answer(
+        f"<b>🎁 Подарок: {gift_name}</b>\n"
+        f"<b>🔍 Способ поиска: {search_method}</b>\n"
+        f"<b>🌟 Название модели: {model_name}</b>\n\n"
+        "<b>➡️ Вы уверены, что данные введены корректно?</b>",
+        parse_mode="HTML",
+        reply_markup=kb.yes_or_no)
+    
+    await state.update_data(model_name=model_name)
 
-        for account_email in accounts.keys():
-            if stop_mailing:
-                break
+    await state.set_state(GiftSearch.waiting_for_confirm)
 
-            for recipient in mailing_list:
-                if stop_mailing:
-                    break
+@router.message(GiftSearch.waiting_for_backdrop_name)
+async def get_backdrop_name(message: Message, state: FSMContext):
+    
+    data = await state.get_data()
 
-                text = REPORT_TEXTS[reason].format(**data)
-                subject = "Жалоба от пользователя"
+    gift_name = data.get('gift_name')
 
-                try:
-                    await send_email(account_email, recipient, subject, text)
+    search_method = data.get('search_method')
 
-                    if user_language == "ru":
-                        await callback.message.answer(
-                            f"Письмо отправлено с {account_email} на {recipient}",
-                            parse_mode="HTML",
-                            reply_markup=kb.stop)
-                        
-                    elif user_language == "en":
-                        await callback.message.answer(
-                            f"Email sent from {account_email} to {recipient}",
-                            parse_mode="HTML",
-                            reply_markup=kb.stop_en)
+    backdrop_name = message.text
 
-                except Exception as e:
-                    from html import escape
+    await message.answer(
+        f"<b>🎁 Подарок: {gift_name}</b>\n"
+        f"<b>🔍 Способ поиска: {search_method}</b>\n"
+        f"<b>🌟 Название фона: {backdrop_name}</b>\n\n"
+        "<b>➡️ Вы уверены, что данные введены корректно?</b>",
+        parse_mode="HTML",
+        reply_markup=kb.yes_or_no)
+    
+    await state.update_data(backdrop_name=backdrop_name)
 
-                    if user_language == "ru":
-                        await callback.message.answer(
-                            f"❌ Не удалось отправить письмо с {account_email} на {recipient}: {escape(str(e))}",
-                            parse_mode="HTML",
-                            reply_markup=kb.stop)
-                        
-                    if user_language == "en":
-                        await callback.message.answer(
-                            f"❌ Failed to send email from {account_email} to {recipient}: {escape(str(e))}",
-                            parse_mode="HTML",
-                            reply_markup=kb.stop_en)                              
+    await state.set_state(GiftSearch.waiting_for_confirm)
 
-                    await asyncio.sleep(DELAY)  # Задержка между отправками // Delay between shipments
+@router.message(GiftSearch.waiting_for_model_and_backdrop_name)
+async def get_model_and_backdrop_name(message: Message, state: FSMContext):
 
-    if callback.data == "confirm_mailing_yes":
+    data = await state.get_data()
+    gift_name = data.get('gift_name')
+    search_method = data.get('search_method')
 
-        if user_language == "ru":
-            await callback.message.answer(
-                "<b>✅ Отправка жалоб успешно начата!</b>",
-                parse_mode="HTML",
-                reply_markup=kb.stop)
+    model_and_backdrop_name = message.text
+
+    split_input = model_and_backdrop_name.split(',')
+    
+    if len(split_input) != 2:
+        await message.answer(
+            "<b>⚠️ Ошибка! Пожалуйста, введите данные в формате:</b>\n"
+            "<b>Модель, Фон</b>.\n"
+            "<b>Пример:</b> модель1, фон1",
+            parse_mode="HTML")
         
-        elif user_language == "en":
-            await callback.message.answer(
-                "<b>✅ Sending complaints started successfully!</b>",
-                parse_mode="HTML",
-                reply_markup=kb.stop_en)
+        return
 
-        reason = reason_map.get(reason, reason)
+    model_name = split_input[0].strip()
+    backdrop_name = split_input[1].strip()
 
-        await distribute_emails(callback, reason, data)
+    await message.answer(
+        f"<b>🎁 Подарок: {gift_name}</b>\n"
+        f"<b>🔍 Способ поиска: {search_method}</b>\n"
+        f"<b>🌟 Название модели: {model_name}</b>\n"
+        f"<b>🌟 Название фона: {backdrop_name}</b>\n\n"
+        "<b>➡️ Вы уверены, что данные введены корректно?</b>",
+        parse_mode="HTML",
+        reply_markup=kb.yes_or_no)
 
-        await state.clear()
+    await state.update_data(model_name=model_name, backdrop_name=backdrop_name)
 
-    elif callback.data == "confirm_mailing_no":
+    await state.set_state(GiftSearch.waiting_for_confirm)
 
-        if user_language == "ru":
-            await callback.message.answer(
-                "<b>❌ Вы отменили процесс. Используйте кнопку ниже, чтобы начать заново.</b>",
-                parse_mode="HTML",
-                reply_markup=kb.start)
+@router.message(GiftSearch.waiting_for_symbol_name)
+async def get_symbol_name(message: Message, state: FSMContext):
+    
+    data = await state.get_data()
+
+    gift_name = data.get('gift_name')
+
+    search_method = data.get('search_method')
+
+    symbol_name = message.text
+
+    await message.answer(
+        f"<b>🎁 Подарок: {gift_name}</b>\n"
+        f"<b>🔍 Способ поиска: {search_method}</b>\n"
+        f"<b>🌟 Название узора: {symbol_name}</b>\n\n"
+        "<b>➡️ Вы уверены, что данные введены корректно?</b>",
+        parse_mode="HTML",
+        reply_markup=kb.yes_or_no)
+    
+    await state.update_data(symbol_name=symbol_name)
+
+    await state.set_state(GiftSearch.waiting_for_confirm)
+
+@router.message(GiftSearch.waiting_for_number)
+async def get_number(message: Message, state: FSMContext):
+
+    data = await state.get_data()
+
+    gift_name = data.get('gift_name')
+    search_method = data.get('search_method')
+
+    number_text = message.text.strip()
+
+    if number_text.isdigit():
+        number = int(number_text)
+        number_display = f"Номер подарка: {number}"
+        number_data = number
+    
+    elif re.fullmatch(r'\d+-\d+', number_text):
+        start, end = map(int, number_text.split('-'))
+        if start > end:
+            await message.answer("⚠️ Ошибка: начальное число больше конечного. Введите корректный диапазон!")
+            return
+        number_data = list(range(start, end + 1))
+        number_display = f"Диапазон номеров: {start} - {end}"
+
+    else:
+        await message.answer("⚠️ Ошибка: Введите одно число или диапазон (например, 100-200)!")
+        return
+
+    await message.answer(
+        f"<b>🎁 Подарок: {gift_name}</b>\n"
+        f"<b>🔍 Способ поиска: {search_method}</b>\n"
+        f"<b>🌟 {number_display}</b>\n\n"
+        "<b>➡️ Вы уверены, что данные введены корректно?</b>",
+        parse_mode="HTML",
+        reply_markup=kb.yes_or_no)
+
+    await state.update_data(number=number_data)
+
+    await state.set_state(GiftSearch.waiting_for_confirm)
+
+async def send_links(callback: CallbackQuery, links, search_method, model_name, backdrop_name, symbol_name, number):
+    
+    callback_data = callback.data
+
+    if callback_data == "yes":
+        if not links:
+            await callback.message.answer("❌ Подарки не найдены.")
+            return
+
+        if len(links) <= 50:
+            batch_size = 50
+            for i in range(0, len(links), batch_size):
+                text = "\n".join(links[i:i+batch_size])
+                await callback.message.answer(text, disable_web_page_preview=True)
+        
+        else:
+            file_name = "gift_links.txt"
             
-            await state.clear()
+            temp_dir = tempfile.gettempdir()
+            file_path = os.path.join(temp_dir, file_name)
 
-        elif user_language == "en":
-            await callback.message.answer(
-                "<b>❌ You have canceled the process. Use the button below to start again.</b>",
-                    parse_mode="HTML",
-                    reply_markup=kb.start_en)
-                        
-            await state.clear()
+            with open(file_path, "w", encoding="utf-8") as file:
+                file.write("\n".join(links))
 
-@router.callback_query(F.data == "cancel")
-async def cancel(callback: CallbackQuery, state: FSMContext):
+            await callback.message.answer_document(FSInputFile(file_path), caption="📄 Ваш список ссылок")
 
-    user_id = callback.from_user.id
+            os.remove(file_path)
 
-    user_language = await get_user_language(user_id)
+        if search_method == "Модель 🎁":
+            search_info = f"<b>🔹 Модель:</b> {model_name}"
+        elif search_method == "Фон 🖼️":
+            search_info = f"<b>🔹 Фон:</b> {backdrop_name}"
+        elif search_method == "Модель + Фон 🌈":
+            search_info = f"<b>🔹 Модель:</b> {model_name}\n<b>🔹 Фон:</b> {backdrop_name}"
+        elif search_method == "Узор 🎨":
+            search_info = f"<b>🔹 Узор:</b> {symbol_name}"
+        elif search_method == "Номер 🔢":
+            if isinstance(number, list):
+                search_info = f"<b>🔹 Номер:</b> {number[0]} - {number[-1]}"
+            else:
+                search_info = f"<b>🔹 Номер:</b> {number}"
 
-    if user_language == "ru":
+        statistics_message = (
+            f"<b>📊 Статистика парсинга:</b>\n"
+            f"<b>🔹 Способ поиска:</b> {search_method}\n"
+            f"{search_info}\n"
+            f"<b>🔹 Количество ссылок:</b> {len(links)}"
+        )
+
+        await callback.message.answer(statistics_message, parse_mode="HTML")
+
+    elif callback_data == "no":
         await callback.message.answer(
             "<b>❌ Действие успешно отменено.</b>",
             parse_mode="HTML",
-            reply_markup=kb.menu)
-        
-        await state.clear()
-    
-    elif user_language == "en":
-        await callback.message.answer(
-            "<b>❌ The action was successfully cancelled.</b>",
-            parse_mode="HTML",
-            reply_markup=kb.menu_en)
-        
-        await state.clear()
+            reply_markup=kb.back_to_menu)
 
-@router.callback_query(F.data == "stop")
-async def stop(callback: CallbackQuery):
+@router.callback_query(GiftSearch.waiting_for_confirm)
+async def get_confirm(callback: CallbackQuery, state: FSMContext):
 
-    await callback.answer()
+    data = await state.get_data()
 
-    global stop_mailing
-    stop_mailing = True
+    gift_name = data.get('gift_name')
+    search_method = data.get('search_method')
+    model_name = data.get('model_name')
+    backdrop_name = data.get('backdrop_name')
+    model_and_backdrop_name = data.get('model_and_backdrop_name')
+    symbol_name = data.get('symbol_name')
+    number = data.get('number')
 
-    user_id = callback.from_user.id
+    gift_name = gift_name.replace(" ", "").replace("_", "").replace("’", "").replace("-", "")
 
-    user_language = await get_user_language(user_id)
+    db_connection = await get_db_connection()
 
-    if user_language == "ru":
-        await callback.message.answer(
-            "<b>⛔ Рассылка успешно остановлена.</b>",
-            parse_mode="HTML",
-            reply_markup=kb.repeat)
-        
-    elif user_language == "en":
-        await callback.message.answer(
-            "<b>⛔️ Mailing stopped successfully.</b>",
-            parse_mode="HTML",
-            reply_markup=kb.repeat_en)
-    
-@router.callback_query(F.data == "profile")
-async def profile(callback: CallbackQuery):
-
-    await callback.answer()
-
-    user_id = callback.from_user.id
-
-    user_info = await get_user_info(callback.from_user.id)
-
-    if user_info:
-        user_id, registration_date, balance, subscription_date = user_info
-
-    subscription_datetime = await get_subscription_datetime(user_id)
-    
-    current_timestamp = int(time.time())
-    
-    user_language = await get_user_language(user_id)
-
-    if subscription_datetime > current_timestamp:
-        subscription_date = datetime.fromtimestamp(subscription_datetime).strftime('%d.%m.%Y %H:%M:%S')
-    
-        if user_language == "ru":
-            subscription_text = f"<b>💎 Активна до</b> {subscription_date}"
-        elif user_language == "en":
-            subscription_text = f"<b>💎 Active until</b> {subscription_date}"
-
-    elif user_id in ADMINS:
-        if user_language == "ru":
-            subscription_text = "<b>💎 Активна</b>"
-        elif user_language == "en":
-            subscription_text = "<b>💎 Active</b>"
-    else:
-        if user_language == "ru":
-            subscription_text = "<b>❌ Отсутствует</b>"
-        elif user_language == "en":
-            subscription_text = "<b>❌ Missing</b>"
-
-    if user_language == "ru":
-        await callback.message.answer(
-            "<b>👤 Ваш профиль:</b>\n\n"
-            f"<b>🆔 Ваш Telegram ID:</b> <code>{user_id}</code>\n"
-            f"<b>📅 Дата регистрации:</b> {registration_date}\n"
-            f"<b>💰 Баланс:</b> {balance} ₽\n"
-            f"<b>🌟 Статус подписки:</b> {subscription_text}\n",
-            parse_mode="HTML",
-            reply_markup=kb.profile)
-
-    elif user_language == "en":
-        await callback.message.answer(
-            "<b>👤 Your Profile:</b>\n\n"
-            f"<b>🆔 Your Telegram ID:</b> <code>{user_id}</code>\n"
-            f"<b>📅 Registration Date:</b> {registration_date}\n"
-            f"<b>💰 Balance:</b> {balance} ₽\n"
-            f"<b>🌟 Subscription Status:</b> {subscription_text}\n",
-            parse_mode="HTML",
-            reply_markup=kb.profile_en)
-
-class SubscriptionBuy(StatesGroup):
-    subscription_duration = State()
-    pay = State()
-    confirm = State()
-
-@router.callback_query(F.data == "subscription_buy")
-async def subscription_buy(callback: CallbackQuery, state: FSMContext):
-
-    await callback.answer()
-
-    user_id = callback.from_user.id
-
-    user_language = await get_user_language(user_id)
-
-    subscription_datetime = await get_subscription_datetime(user_id)
-    
-    current_timestamp = int(time.time())
-
-    if subscription_datetime > current_timestamp or user_id in ADMINS:
-
-        if user_language == "ru":
-            await callback.message.answer(
-                "<b>❌ У вас уже есть активная подписка. Попробуйте позже.</b>",
-                parse_mode="HTML",
-                reply_markup=kb.menu)
-        elif user_language == "en":
-            await callback.message.answer(
-                "<b>❌ You already have an active subscription. Please try again later.</b>",
-                parse_mode="HTML",
-                reply_markup=kb.menu_en)
-    else:
-        if user_language == "ru":
-            await callback.message.answer(
-                "<b>💎 Оформите подписку и начните пользоваться всеми возможностями бота уже сегодня!</b>\n\n"
-                "<b>⏳ Выберите подходящий срок подписки:</b>",
-                parse_mode="HTML",
-                reply_markup=kb.subscription_duration)
-
-            await state.set_state(SubscriptionBuy.subscription_duration)
-
-        elif user_language == "en":
-            await callback.message.answer(
-                "<b>💎 Subscribe now and start using all the bot's features today!</b>\n\n"
-                "<b>⏳ Choose the subscription duration:</b>",
-                parse_mode="HTML",
-                reply_markup=kb.subscription_duration_en)
-
-            await state.set_state(SubscriptionBuy.subscription_duration)
-
-@router.callback_query(SubscriptionBuy.subscription_duration)
-async def subscription_duration(callback: CallbackQuery, state: FSMContext):
+    if search_method == "Модель 🎁":
+        links = await get_links_by_model_name(db_connection, gift_name, model_name)
+    elif search_method == "Фон 🖼️":
+        links = await get_links_by_backdrop_name(db_connection, gift_name, backdrop_name)
+    elif search_method == "Модель + Фон 🌈":
+        links = await get_links_by_model_and_backdrop_name(db_connection, gift_name, model_name, backdrop_name)
+    elif search_method == "Узор 🎨":
+        links = await get_links_by_symbol_name(db_connection, gift_name, symbol_name)
+    elif search_method == "Номер 🔢":
+        links = await get_links_by_number(db_connection, gift_name, number)
 
     callback_data = callback.data
 
-    user_id = callback.from_user.id
+    if callback_data == "yes":
 
-    user_language = await get_user_language(user_id)
+        await send_links(callback, links, search_method, model_name, backdrop_name, symbol_name, number)
 
-    try:
-        duration = callback_data.split("|")[0]
-    except IndexError:
-        if user_language == "ru":
-            await callback.answer("❌ Произошла ошибка. Пожалуйста, выберите срок подписки еще раз.")
-            return
-        elif user_language == "en":
-            await callback.answer("❌ An error occurred. Please select the subscription duration again.")
-            return
-
-    if duration == "7":
-        price = "70"
-    elif duration == "14":
-        price = "140"
-    elif duration == "30":
-        price = "210"
-    elif duration == "60":
-        price = "420"
-    else:
-        if user_language == "ru":
-            price = "❌ Неизвестная сумма"
-        elif user_language == "en":
-            price = "❌ Unknown amount"
-
-    await state.update_data(duration=duration, price=price)
-
-    if user_language == "ru":
+    elif callback_data == "no":
         await callback.message.answer(
-            "<b>🔍 Пожалуйста, проверьте введенные данные:</b>\n\n"
-            f"<b>⏳ Срок для подписки: {duration} дней</b>\n"
-            f"<b>💰 Сумма для оплаты:</b> {price} ₽\n\n"
-            "<b>👇 Нажмите на кнопку ниже, чтобы оплатить. После этого подтвердите операцию.</b>",
+            "<b>❌ Действие успешно отменено.</b>",
             parse_mode="HTML",
-            reply_markup=kb.pay)
-        
-        await state.set_state(SubscriptionBuy.pay)
+            reply_markup=kb.back_to_menu)
+
+class GlobalSearch(StatesGroup):
+    waiting_for_search_method = State()
+    waiting_for_backdrop_name = State()
+    waiting_for_backdrop_and_symbol_name = State()
+    waiting_for_symbol_name = State()
+    waiting_for_confirm = State()
+    waiting_for_link_type = State()
+
+@router.callback_query(F.data == "global_search")
+async def global_search_button(callback: CallbackQuery, state: FSMContext):
+    await callback.message.answer(
+        f"<b>🕵️‍♂️ Вы выбрали глобальный поиск</b>\n\n"
+        "<b>🔍 Выберите способ поиска:</b>",
+        parse_mode="HTML",
+        reply_markup=kb.global_search_methods)
+
+    await state.set_state(GlobalSearch.waiting_for_search_method)
+
+@router.callback_query(GlobalSearch.waiting_for_search_method)
+async def get_global_search_method(callback: CallbackQuery, state: FSMContext):
+
+    callback_data = callback.data
+
+    if callback_data == "back_to_menu":
+        await back_to_menu_button(callback, state)
+
+    search_method = callback_data
+
+    if search_method == "Фон 🖼️":
+        text = "<b>🌟 Введите название фона для поиска:</b>"
+    elif search_method == "Фон + Узор 🌈":
+        text = "<b>🌟 Введите название фона и узора для поиска:</b>"
+    elif search_method == "Узор 🎨":
+        text = "<b>🌟 Введите название узора для поиска:</b>"
+
+    await callback.message.answer(
+        f"<b>🔍 Выбранный способ поиска: {search_method}</b>\n"
+        f"{text}\n"
+        "<i>💡 Пожалуйста, убедитесь, что данные введены корректно!</i>",
+        parse_mode="HTML")
     
-    elif user_language == "en":
-        await callback.message.answer(
-            "<b>🔍 Please check the entered details:</b>\n\n"
-            f"<b>⏳ Subscription duration: {duration} days</b>\n"
-            f"<b>💰 Payment amount:</b> {price} ₽\n\n"
-            "<b>👇 Click the button below to pay. After that, confirm the transaction.</b>",
-            parse_mode="HTML",
-            reply_markup=kb.pay_en)
+    await state.update_data(search_method=search_method)
 
-        await state.set_state(SubscriptionBuy.pay)
+    if search_method == "Фон 🖼️":
+        await state.set_state(GlobalSearch.waiting_for_backdrop_name)
+    elif search_method == "Фон + Узор 🌈":
+        await state.set_state(GlobalSearch.waiting_for_backdrop_and_symbol_name)
+    elif search_method == "Узор 🎨":
+        await state.set_state(GlobalSearch.waiting_for_symbol_name)
 
-@router.callback_query(SubscriptionBuy.pay)
-async def pay(callback: CallbackQuery, state: FSMContext):
+@router.message(GlobalSearch.waiting_for_backdrop_name)
+async def get_global_backdrop_name(message: Message, state: FSMContext):
 
     data = await state.get_data()
 
-    price = data.get('price')
+    search_method = data.get('search_method')
+    backdrop_name = message.text
 
-    user_id = callback.from_user.id
-    user_info = await get_user_info(user_id)
-    _, _, balance, _ = user_info
+    await message.answer(
+        f"<b>🔍 Способ поиска: {search_method}</b>\n"
+        f"<b>🌟 Название фона: {backdrop_name}</b>\n\n"
+        "<b>➡️ Вы уверены, что данные введены корректно?</b>",
+        parse_mode="HTML",
+        reply_markup=kb.yes_or_no)
+    
+    await state.update_data(backdrop_name=backdrop_name)
 
-    new_balance = int(balance) - int(price)
+    await state.set_state(GlobalSearch.waiting_for_confirm)
 
-    user_language = await get_user_language(user_id)
+@router.message(GlobalSearch.waiting_for_backdrop_and_symbol_name)
+async def get_backdrop_and_symbol_name(message: Message, state: FSMContext):
 
-    await state.update_data(user_id=user_id, new_balance=new_balance, balance=balance, price=price)
-
-    if user_language == "ru":
-        await callback.message.answer(
-            "<b>📝 Детали оплаты:</b>\n\n"
-            f"<b>💰 Ваш текущий баланс:</b> {balance} ₽\n"
-            f"<b>📉 Баланс после оплаты:</b> {new_balance} ₽\n"
-            f"<b>💵 Сумма к оплате:</b> {price} ₽\n\n"
-            "<b>✅ Подтвердить оплату?</b>",
-            parse_mode="HTML",
-            reply_markup=kb.confirm_pay_yes_no)
-
-        await state.set_state(SubscriptionBuy.confirm)
-
-    elif user_language == "en":
-        await callback.message.answer(
-            "<b>📝 Payment details:</b>\n\n"
-            f"<b>💰 Your current balance:</b> {balance} ₽\n"
-            f"<b>📉 Balance after payment:</b> {new_balance} ₽\n"
-            f"<b>💵 Amount to pay:</b> {price} ₽\n\n"
-            "<b>✅ Confirm payment?</b>",
-            parse_mode="HTML",
-            reply_markup=kb.confirm_pay_yes_no_en)
-
-        await state.set_state(SubscriptionBuy.confirm)
-
-@router.callback_query(SubscriptionBuy.confirm)
-async def confirm(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
-    user_id = data.get('user_id')
-    duration = data.get('duration')
-    new_balance = data.get('new_balance')
-    balance = data.get('balance')
-    price = data.get('price')
+    search_method = data.get('search_method')
 
-    my_user_id = callback.from_user.id
+    backdrop_and_symbol_name = message.text
+    split_input = backdrop_and_symbol_name.split(',')
 
-    user_language = await get_user_language(my_user_id)
+    if len(split_input) != 2:
+        await message.answer(
+            "<b>⚠️ Ошибка! Пожалуйста, введите данные в формате:</b>\n"
+            "<b>Фон, Узор</b>.\n"
+            "<b>Пример:</b> фон1, узор1",
+            parse_mode="HTML")
+        return
 
-    if callback.data == "confirm_pay_yes":
-        if int(balance) >= int(price):
-            duration_in_seconds = int(duration) * 86400
-            current_timestamp = int(time.time())
-            duration_result = duration_in_seconds + int(current_timestamp)
+    backdrop_name = split_input[0].strip()
+    symbol_name = split_input[1].strip()
 
-            await subtract_balance(new_balance, user_id)
-            await add_subscription(duration_result, user_id)
+    await message.answer(
+        f"<b>🔍 Способ поиска: {search_method}</b>\n"
+        f"<b>🌟 Название фона: {backdrop_name}</b>\n"
+        f"<b>🌟 Название узора: {symbol_name}</b>\n\n"
+        "<b>➡️ Вы уверены, что данные введены корректно?</b>",
+        parse_mode="HTML",
+        reply_markup=kb.yes_or_no)
 
-            if user_language == "ru":
-                await callback.message.answer(
-                    f"<b>✅ Оплата успешно завершена!</b>\n\n"
-                    f"<b>🆔 Ваш ID:</b> {user_id}\n"
-                    f"<b>⏳ Срок подписки: {duration} дней</b>\n"
-                    f"<b>💰 Новый баланс:</b> {new_balance} ₽\n\n"
-                    "<b>🎉 Спасибо за оплату! Ваша подписка активирована. Если у вас возникнут вопросы, наша поддержка всегда на связи. 😊</b>",
-                    parse_mode="HTML",
-                    reply_markup=kb.menu)
-            elif user_language == "en":
-                await callback.message.answer(
-                    f"<b>✅ Payment successfully completed!</b>\n\n"
-                    f"<b>🆔 Your ID:</b> {user_id}\n"
-                    f"<b>⏳ Subscription duration: {duration} days</b>\n"
-                    f"<b>💰 New balance:</b> {new_balance} ₽\n\n"
-                    "<b>🎉 Thank you for your payment! Your subscription is now active. If you have any questions, our support is always available. 😊</b>",
-                    parse_mode="HTML",
-                    reply_markup=kb.menu_en)
-        else:
-            if user_language == "ru":
-                await callback.message.answer(
-                    "<b>❌ Ошибка!</b>\n\n"
-                    "<b>У вас недостаточно средств на балансе для завершения оплаты.</b> 💸\n"
-                    "<b>Попробуйте пополнить баланс и повторите попытку.</b> 💳",
-                    parse_mode="HTML",
-                    reply_markup=kb.menu)
-                
-            elif user_language == "en":
-                await callback.message.answer(
-                    "<b>❌ Error!</b>\n\n"
-                    "<b>You do not have enough funds in your balance to complete the payment.</b> 💸\n"
-                    "<b>Please try adding funds to your balance and try again.</b> 💳",
-                    parse_mode="HTML",
-                    reply_markup=kb.menu_en)
+    await state.update_data(backdrop_name=backdrop_name, symbol_name=symbol_name)
 
-    elif callback.data == "confirm_pay_no":
-        if user_language == "ru":
-            await callback.message.answer(
-                "<b>❌ Вы отменили процесс. Используйте кнопку ниже, чтобы начать заново.</b>",
-                parse_mode="HTML",
-                reply_markup=kb.menu)
+    await state.set_state(GlobalSearch.waiting_for_confirm)
 
-            await state.clear()
-        
-        elif user_language == "en":
-            await callback.message.answer(
-                "<b>❌ You have canceled the process. Use the button below to start over.</b>",
-                parse_mode="HTML",
-                reply_markup=kb.menu_en)
+@router.message(GlobalSearch.waiting_for_symbol_name)
+async def get_global_symbol_name(message: Message, state: FSMContext):
 
-            await state.clear()
+    data = await state.get_data()
+
+    search_method = data.get('search_method')
+    symbol_name = message.text
+
+    await message.answer(
+        f"<b>🔍 Способ поиска: {search_method}</b>\n"
+        f"<b>🌟 Название узора: {symbol_name}</b>\n\n"
+        "<b>➡️ Вы уверены, что данные введены корректно?</b>",
+        parse_mode="HTML",
+        reply_markup=kb.yes_or_no)
+    
+    await state.update_data(symbol_name=symbol_name)
+
+    await state.set_state(GlobalSearch.waiting_for_confirm)
+
+@router.callback_query(GlobalSearch.waiting_for_confirm)
+async def get_global_confirm(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+
+    search_method = data.get('search_method')
+    backdrop_name = data.get('backdrop_name')
+    symbol_name = data.get('symbol_name')
+
+    db_connection = await get_db_connection()
+
+    if search_method == "Фон 🖼️":
+        links = await get_global_links_by_backdrop_name(db_connection, backdrop_name)
+    elif search_method == "Узор 🎨":
+        links = await get_global_links_by_symbol_name(db_connection, symbol_name)
+    elif search_method == "Фон + Узор 🌈":
+        links = await get_global_links_by_backdrop_and_symbol_name(db_connection, backdrop_name, symbol_name)
+
+    await send_global_links(callback, links, search_method, backdrop_name, symbol_name)
+
+async def send_global_links(callback: CallbackQuery, links, search_method, backdrop_name, symbol_name):
+    if not links:
+        await callback.message.answer("❌ Ссылки не найдены.")
+        return
+
+    if len(links) <= 50:
+        batch_size = 50
+        for i in range(0, len(links), batch_size):
+            text = "\n".join(links[i:i + batch_size])
+            await callback.message.answer(text, disable_web_page_preview=True)
+    else:
+        file_name = "global_links.txt"
+        temp_dir = tempfile.gettempdir()
+        file_path = os.path.join(temp_dir, file_name)
+
+        with open(file_path, "w", encoding="utf-8") as file:
+            file.write("\n".join(links))
+
+        await callback.message.answer_document(FSInputFile(file_path), caption="📄 Ваш список ссылок")
+        os.remove(file_path)
+
+    if search_method == "Фон 🖼️":
+        search_info = f"<b>🔹 Фон:</b> {backdrop_name}"
+    elif search_method == "Фон + Узор 🌈":
+        search_info = f"<b>🔹 Фон:</b> {backdrop_name}\n<b>🔹 Узор:</b> {symbol_name}"
+    elif search_method == "Узор 🎨":
+        search_info = f"<b>🔹 Узор:</b> {symbol_name}"
+
+    statistics_message = (
+        f"<b>📊 Статистика поиска:</b>\n"
+        f"<b>🔹 Способ поиска:</b> {search_method}\n"
+        f"{search_info}\n"
+        f"<b>🔹 Количество ссылок:</b> {len(links)}"
+    )
+
+    await callback.message.answer(statistics_message, parse_mode="HTML")
+
+@router.callback_query(F.data == "general_db_stats")
+async def stats_db_button(callback: CallbackQuery):
+
+    db_connection = await get_db_connection()
+
+    number_of_tables = await get_number_of_tables(db_connection)
+
+    total_number_gifts = await get_total_number_gifts(db_connection)
+
+    statistics = await get_statistics(db_connection)
+
+    await callback.message.answer(
+        f"<b>📊 <u>Статистика базы данных</u>:</b>\n\n"
+        f"<b>🎁 Общее количество подарков:</b> <code>{total_number_gifts}</code>\n"
+        f"<b>🌈 Всего моделей в базе:</b> <code>{statistics['total_unique_models']}</code>\n"
+        f"<b>🖼️ Всего фонов в базе:</b> <code>{statistics['total_unique_backdrops']}</code>\n"
+        f"<b>🎨 Всего узоров в базе:</b> <code>{statistics['total_unique_symbols']}</code>\n\n"
+        f"<b>📂 Количество баз данных:</b> <code>{number_of_tables}</code>",
+        parse_mode="HTML",
+        reply_markup=kb.back_to_menu)
+
+@router.callback_query(F.data == "info")
+async def info_button(callback: CallbackQuery):
+    await callback.message.answer(
+        "<b>ℹ️ Информация о боте</b>\n\n"
+        "<b>Все самые важные сведения в одном месте. Следи за обновлениями, узнавай больше о разработке и будь в курсе новостей! 🚀</b>",
+        parse_mode="HTML",
+        reply_markup=kb.info)
 
 @router.callback_query(F.data == "admin_panel")
-async def admin_panel(callback: CallbackQuery):
+async def admin_panel_button(callback: CallbackQuery):
+    await callback.message.answer(
+        "<b>🔧 Админ-панель</b>\n\n"
+        "<b>🛠 Выберите действие:</b>",
+        parse_mode="HTML",
+        reply_markup=kb.admin_panel)
 
-    await callback.answer()
+@router.callback_query(F.data == "parsing")
+async def parsing_button(callback: CallbackQuery):
+    await callback.message.answer(
+        "<i>⬇️ Выберите действие:</i>",
+        parse_mode="HTML",
+        reply_markup=kb.parsing)
 
-    user_id = callback.from_user.id
+@router.callback_query(F.data == "auto_parsing")
+async def auto_parsing_button(callback: CallbackQuery):
+    await callback.message.answer(
+        "<b>ℹ️ Для вашего удобства, чтобы вы могли следить за процессом и получать логи в режиме реального времени, пожалуйста, добавьте меня в ваш Telegram канал и назначьте администратором. 🛡️</b>\n"
+        "<b>🔔 Так вы всегда будете в курсе событий!</b>\n\n"
+        "<i>⬇️ Выберите действие:</i>",
+        parse_mode="HTML",
+        reply_markup=kb.auto_parsing)
 
-    user_language = await get_user_language(user_id)
+HEADERS = {"User-Agent": "Mozilla/5.0"}
+semaphore = asyncio.Semaphore(50)
 
-    if user_language == "ru":
-        await callback.message.answer(
-            "<b>💼 Добро пожаловать в Админ-Панель!</b>",
-            parse_mode="HTML",
-            reply_markup=kb.admin_panel)
-        
-    elif user_language == "en":
-        await callback.message.answer(
-            "<b>💼 Welcome to the Admin-Panel!</b>",
-            parse_mode="HTML",
-            reply_markup=kb.admin_panel_en)
+progress_data = {}
 
-class UserManagement(StatesGroup):
-    user_id = State()
-    action = State()
-    duration = State()
-    confirm = State()
-    amount_new_balance = State()
+ssl_context = ssl.create_default_context(cafile=certifi.where())
 
-@router.callback_query(F.data == "user_management")
-async def user_management(callback: CallbackQuery, state: FSMContext):
+@router.callback_query(F.data == "progress_parsing")
+async def show_parsing_progress(callback: CallbackQuery):
 
-    await callback.answer()
+    global parsing_enabled
 
-    user_id = callback.from_user.id
+    if not parsing_enabled:
+        await callback.message.answer("ℹ️ Статус: парсинг не запущен. Начните процесс, чтобы получить обновлённые данные.")
+        return
 
-    user_language = await get_user_language(user_id)
+    progress_messages = []
 
-    if user_language == "ru":
-        await callback.message.answer(
-            "<b>🔍 Введите ID пользователя:</b>",
-            parse_mode="HTML",
-            reply_markup=kb.cancel)
-
-        await state.set_state(UserManagement.user_id)
-    
-    elif user_language == "en":
-        await callback.message.answer(
-            "<b>🔍 Enter the user ID:</b>",
-            parse_mode="HTML",
-            reply_markup=kb.cancel)
-
-        await state.set_state(UserManagement.user_id)
-
-@router.message(UserManagement.user_id)
-async def get_user_id(message: Message, state: FSMContext):
-
-    user_id = message.text
-
-    my_user_id = message.from_user.id
-
-    user_language = await get_user_language(my_user_id)    
-
-    await state.update_data(user_id=user_id)
-
-    if not await user_exists(user_id):
-            
-            if user_language == "ru":
-                await message.answer(
-                    "<b>🚫 Пользователь не найден! Возможно, ID указан с ошибкой.</b>",
-                    parse_mode="HTML",
-                    reply_markup=kb.menu)
-                
-            elif user_language == "en":
-                await message.answer(
-                    "<b>🚫 User not found! The ID might be incorrect.</b>",
-                    parse_mode="HTML",
-                    reply_markup=kb.menu_en)
-    else:
-        if user_language == "ru":
-
-            await message.answer(
-                f"<b>👤 Введеный ID пользователя:</b> <code>{user_id}</code>\n\n"
-                "<b>🛠️ Выберите действие:</b>",
-                parse_mode="HTML",
-                reply_markup=kb.user_management)
-
-            await state.set_state(UserManagement.action)
-
-        elif user_language == "en":
-            await message.answer(
-                f"<b>👤 Entered user ID:</b> <code>{user_id}</code>\n\n"
-                "<b>🛠️ Choose an action:</b>",
-                parse_mode="HTML",
-                reply_markup=kb.user_management_en)
-
-            await state.set_state(UserManagement.action)
-
-@router.callback_query(UserManagement.action)
-async def action(callback: CallbackQuery, state: FSMContext):
-
-    data = await state.get_data()
-    user_id = data.get('user_id')
-    action = callback.data.split("|")[1]
-
-    await state.update_data(action=action)
-
-    my_user_id = callback.from_user.id
-
-    user_language = await get_user_language(my_user_id)
-
-    if action == "🎁 Подарить подписку" or action == "🎁 Give a subscription":
-        if user_language == "ru":
-            await callback.message.answer(
-                "📅 <b>Введите количество дней для подписки:</b>\n"
-                "🔢 <b>Например: 7, 30 или 365.</b>",
-            parse_mode="HTML")
-            
-            await state.set_state(UserManagement.duration)
-        
-        elif user_language == "en":
-            await callback.message.answer(
-                "📅 <b>Enter the number of days for the subscription:</b>\n"
-                "🔢 <b>For example: 7, 30, or 365.</b>",
-                parse_mode="HTML")
-
-            await state.set_state(UserManagement.duration)
-
-    if action == "💸 Изменить баланс" or action == "💸 Change balance":
-        user_info = await get_user_info(user_id)
-        _, _, balance, _ = user_info
-
-        await state.update_data(balance=balance)
-
-        if user_language == "ru":
-            await callback.message.answer(
-                f"<b>💰 Текущий баланс пользователя с ID: {user_id} - {balance} ₽</b>\n\n"
-                "<b>💸 Введите новый баланс:</b>",
-                parse_mode="HTML",
-                reply_markup=kb.cancel)
-            
-            await state.set_state(UserManagement.amount_new_balance)
-
-        elif user_language == "en":
-            await callback.message.answer(
-                f"<b>💰 Current balance of the user with ID: {user_id} - {balance} ₽</b>\n\n"
-                "<b>💸 Enter the new balance:</b>",
-                parse_mode="HTML",
-                reply_markup=kb.cancel_en)
-
-            await state.set_state(UserManagement.amount_new_balance)
-
-@router.message(UserManagement.amount_new_balance)
-async def get_amount_new_balance(message: Message, state: FSMContext):
-    try:
-        amount_new_balance = int(message.text)
-
-        if amount_new_balance >= 0:
-            await state.update_data(amount_new_balance=amount_new_balance)
-
-            data = await state.get_data()
-            user_id = data.get('user_id')
-            action = data.get('action')
-
-            my_user_id = message.from_user.id
-
-            user_language = await get_user_language(my_user_id)
-
-            if user_language == "ru":
-                await message.answer(
-                    "<b>🔍 Пожалуйста, проверьте введенные данные:</b>\n\n"
-                    f"<b>🆔 ID пользователя:</b> <code>{user_id}</code>\n"
-                    f"<b>🛠️ Действие:</b> {action}\n"
-                    f"<b>💸 Обновленный баланс пользователя:</b> {amount_new_balance} ₽\n\n"
-                    "<b>➡️ Хотите продолжить?</b>",
-                    parse_mode="HTML",
-                    reply_markup=kb.confirm_change_balance_yes_no)
-                
-                await state.set_state(UserManagement.confirm)
-
-            elif user_language == "en":
-                await message.answer(
-                    "<b>🔍 Please check the entered data:</b>\n\n"
-                    f"<b>🆔 User ID:</b> <code>{user_id}</code>\n"
-                    f"<b>🛠️ Action:</b> {action}\n"
-                    f"<b>💸 Updated user balance:</b> {amount_new_balance} ₽\n\n"
-                    "<b>➡️ Do you want to continue?</b>",
-                    parse_mode="HTML",
-                    reply_markup=kb.confirm_change_balance_yes_no_en)
-
-                await state.set_state(UserManagement.confirm)
+    for gift_name in GIFTS:
+        gift_display = GIFTS_NAME_WITH_LINKS.get(gift_name, gift_name)
+        if gift_name in progress_data:
+            progress = progress_data[gift_name]
+            progress_messages.append(f"{gift_display}: <i>{progress:.2f}%</i>")
         else:
-            if user_language == "ru":
-                await message.reply("<b>⚠️ Пожалуйста, введите целое число не меньше нуля.</b>", parse_mode="HTML")
-            elif user_language == "en":
-                await message.reply("<b>⚠️ Please enter a whole number greater than or equal to zero.</b>", parse_mode="HTML")
-    except ValueError:
-        if user_language == "ru":
-            await message.reply("<b>❌ Введите корректное целое число.</b>", parse_mode="HTML")
-        elif user_language == "en":
-            await message.reply("<b>❌ Please enter a valid whole number.</b>", parse_mode="HTML")
+            progress_messages.append(f"{gift_display}: <i>🔄 Ожидание...</i>")
 
-@router.message(UserManagement.duration)
-async def duration(message: Message, state: FSMContext):
+    progress_text = "\n\n".join(progress_messages)
+    await callback.message.answer(f"<b>📊 Прогресс парсинга:</b>\n\n{progress_text}", parse_mode="HTML", reply_markup=kb.back_to_menu, disable_web_page_preview=True)
 
-    my_user_id = message.from_user.id
-    user_language = await get_user_language(my_user_id)
+async def get_last_number(db_connection, gift_name):
+    table_name = gift_name
+    cursor = await db_connection.execute(f"SELECT MAX(number) FROM {table_name}")
+    result = await cursor.fetchone()
+    return result[0] if result[0] else 0
 
-    try:
-        duration = int(message.text)
+async def get_quantity(gift_name):
+    url = f"https://t.me/nft/{gift_name}-1"
+    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=ssl_context)) as session:
+        async with session.get(url, headers=HEADERS) as response:
+            if response.status == 200:
+                soup = BeautifulSoup(await response.text(), "html.parser")
 
-        if duration > 0:
-            await state.update_data(duration=duration)
+                quantity_row = soup.find("th", string=lambda text: text and "Quantity" in text)
+                if quantity_row:
+                    quantity_data = quantity_row.find_next_sibling("td").text.strip().replace("\xa0", " ").replace("issued", "").strip()
 
-            data = await state.get_data()
-            user_id = data.get('user_id')
-            action = data.get('action')
+                    quantity_data = quantity_data.replace(" ", "")
 
-            def days_declension(n, user_language):
-                if user_language == "ru":
-
-                    if 11 <= n % 100 <= 19:
-                        return f"{n} дней"
-                    last_digit = n % 10
-                    if last_digit == 1:
-                        return f"{n} день"
-                    elif 2 <= last_digit <= 4:
-                        return f"{n} дня"
+                    if "/" in quantity_data:
+                        issued, total = quantity_data.split("/")
+                        try:
+                            issued = int(issued)
+                            total = int(total)
+                            return issued, total
+                        except ValueError:
+                            return 0, 0
                     else:
-                        return f"{n} дней"
-                elif user_language == "en":
+                        try:
+                            total = int(quantity_data)
+                            return 0, total
+                        except ValueError:
+                            return 0, 0
+    return 0, 0
 
-                    if n == 1:
-                        return f"{n} day"
-                    else:
-                        return f"{n} days"
+async def safe_request(session, url, headers, retries=5, delay=5):
+    ssl_context = ssl.create_default_context()
+    ssl_context.check_hostname = False
+    ssl_context.verify_mode = ssl.CERT_NONE
 
-            duration_text = days_declension(duration, user_language)
+    for attempt in range(retries):
+        try:
+            async with session.get(url, headers=headers, ssl=ssl_context) as response:
+                if response.status == 200:
+                    return await response.text()
+                # logging.info(f"⚠️ Ошибка {response.status} при запросе {url}. Повтор {attempt + 1}/{retries}")
+        except (aiohttp.ClientError, ConnectionResetError, ssl.SSLError) as e:
+            logging.info(f"⚠️ Ошибка сети {e}. Повтор {attempt + 1}/{retries}")
 
-            if user_language == "ru":
-                await message.answer(
-                    "<b>🔍 Пожалуйста, проверьте введенные данные:</b>\n\n"
-                    f"<b>🆔 ID пользователя:</b> <code>{user_id}</code>\n"
-                    f"<b>🛠️ Действие:</b> {action}\n"
-                    f"<b>⌛ Длительность подписки:</b> {duration_text}\n\n"
-                    "<b>➡️ Хотите продолжить?</b>",
-                    parse_mode="HTML",
-                    reply_markup=kb.confirm_gift_a_sub_yes_no)
-
-                await state.set_state(UserManagement.confirm)
-
-            elif user_language == "en":
-                await message.answer(
-                    "<b>🔍 Please check the entered data:</b>\n\n"
-                    f"<b>🆔 User ID:</b> <code>{user_id}</code>\n"
-                    f"<b>🛠️ Action:</b> {action}\n"
-                    f"<b>⌛ Subscription duration:</b> {duration_text}\n\n"
-                    "<b>➡️ Do you want to continue?</b>",
-                    parse_mode="HTML",
-                    reply_markup=kb.confirm_gift_a_sub_yes_no_en)
-
-                await state.set_state(UserManagement.confirm)
-        else:
-            if user_language == "ru":
-                await message.reply("<b>⚠️ Пожалуйста, введите положительное целое число.</b>", parse_mode="HTML")
-            elif user_language == "en":
-                await message.reply("<b>⚠️ Please enter a positive integer.</b>", parse_mode="HTML")
-    except ValueError:
-        if user_language == "ru":
-            await message.reply("<b>❌ Введите корректное целое число.</b>", parse_mode="HTML")
-        elif user_language == "en":
-            await message.reply("<b>❌ Please enter a valid integer.</b>", parse_mode="HTML")
-
-@router.callback_query(UserManagement.confirm)
-async def confirm(callback: CallbackQuery, state: FSMContext):
-    data = await state.get_data()
-    user_id = data.get('user_id')
-    duration = data.get('duration')
-    balance = data.get('balance')
-    amount_new_balance = data.get('amount_new_balance')
-
-    my_user_id = callback.from_user.id
-
-    user_language = await get_user_language(my_user_id)
-
-    if callback.data == "confirm_gift_a_sub_yes":
-
-        duration_in_seconds = duration * 86400
-        current_timestamp = int(time.time())
-        new_subscription_end = duration_in_seconds + current_timestamp
-
-        current_subscription = await get_subscription_datetime(user_id)
-
-        current_sub_date = datetime.fromtimestamp(current_subscription).strftime('%d.%m.%Y %H:%M:%S')
-
-        if new_subscription_end <= current_subscription:
-            if user_language == "ru":
-                await callback.message.answer(
-                    f"<b>⚠ Ошибка:</b> У пользователя уже есть подписка на больший или равный срок!\n\n"
-                    f"<b>📅 Текущая подписка активна до:</b> <code>{current_sub_date}</code>\n"
-                    f"<i>⏳ Попробуйте подарить подписку с большим сроком.</i>",
-                    parse_mode="HTML",
-                    reply_markup=kb.menu)
-                return
+        await asyncio.sleep(delay + random.uniform(1, 3))
         
-            elif user_language == "en":
-                await callback.message.answer(
-                    f"<b>⚠ Error:</b> The user already has a subscription with an equal or longer duration!\n\n"
-                    f"<b>📅 Current subscription active until:</b> <code>{current_sub_date}</code>\n"
-                    f"<i>⏳ Try gifting a subscription with a longer duration.</i>",
-                    parse_mode="HTML",
-                    reply_markup=kb.menu_en)
-                return
+    # logging.info(f"🚨 Не удалось получить данные с {url} после {retries} попыток.")
+    return None
 
-        await add_subscription(new_subscription_end, user_id)
+async def parse_page(session, gift_name, number):
 
-        if user_language == "ru":
-            await callback.message.answer(
-                "<b>🎁 Подписка успешно подарена!✨</b>\n\n"
-                f"<i>⌛ Срок действия: {duration} дней.</i>",
-                parse_mode="HTML",
-                reply_markup=kb.menu)
-        
-        elif user_language == "en":
-            await callback.message.answer(
-                "<b>🎁 Subscription successfully gifted!✨</b>\n\n"
-                f"<i>⌛ Duration: {duration} days.</i>",
-                parse_mode="HTML",
-                reply_markup=kb.menu_en)
+    url = f"https://t.me/nft/{gift_name}-{number}"
+    html = await safe_request(session, url, HEADERS)
+    if not html:
+        return (number, None, None, None, None, None, None)
 
-    elif callback.data == "confirm_gift_a_sub_no":
-        if user_language == "ru":
-            await callback.message.answer(
-                "<b>❌ Вы отменили процесс. Используйте кнопку ниже, чтобы начать заново.</b>",
-                parse_mode="HTML",
-                reply_markup=kb.menu)
+    soup = BeautifulSoup(html, "html.parser")
 
-            await state.clear()
-        
-        elif user_language == "en":
-            await callback.message.answer(
-                "<b>❌ You have cancelled the process. Use the button below to start over.</b>",
-                parse_mode="HTML",
-                reply_markup=kb.menu_en)
+    def extract_data(label):
+        element = soup.find("th", string=label)
+        if element:
+            data = element.find_next_sibling("td")
+            if data:
+                text = data.text.split("<mark>")[0].strip()
+                match = re.search(r'(\d+(\.\d+)?)%', text)
+                percent = match.group(0) if match else None
+                text = text.replace(percent, "").strip() if percent else text
+                return text, percent
+        return None, None
 
-            await state.clear() 
+    model_text, model_percent = extract_data("Model")
+    backdrop_text, backdrop_percent = extract_data("Backdrop")
+    symbol_text, symbol_percent = extract_data("Symbol")
 
-    if callback.data == "confirm_change_balance_yes":
+    return (number, model_text, model_percent, backdrop_text, backdrop_percent, symbol_text, symbol_percent)
 
-        await change_balance(amount_new_balance, user_id)
-
-        if user_language == "ru":
-
-            await callback.message.answer(
-                "<b>🔄 Баланс пользователя успешно обновлён!</b>\n\n"
-                f"<b>📊 Старый баланс:</b> {balance} ₽\n"
-                f"<b>🆕 Новый баланс:</b> {amount_new_balance} ₽\n\n"
-                "<b>✅ Все изменения успешно внесены.</b>",
-                parse_mode="HTML",
-                reply_markup=kb.menu)
-        
-        elif user_language == "en":
-            await callback.message.answer(
-                "<b>🔄 User's balance has been successfully updated!</b>\n\n"
-                f"<b>📊 Old balance:</b> {balance} ₽\n"
-                f"<b>🆕 New balance:</b> {amount_new_balance} ₽\n\n"
-                "<b>✅ All changes have been successfully applied.</b>",
-                parse_mode="HTML",
-                reply_markup=kb.menu_en)
-            
-    elif callback.data == "confirm_change_balance_no":
-        if user_language == "ru":
-            await callback.message.answer(
-                "<b>❌ Вы отменили процесс. Используйте кнопку ниже, чтобы начать заново.</b>",
-                parse_mode="HTML",
-                reply_markup=kb.menu)
-
-            await state.clear()
-        
-        elif user_language == "en":
-            await callback.message.answer(
-                "<b>❌ You have canceled the process. Use the button below to start over.</b>",
-                parse_mode="HTML",
-                reply_markup=kb.menu_en)
-
-            await state.clear()
-
-class AddBalance(StatesGroup):
-    payment_system = State()
-    amount = State()
-    confirm = State()
-
-@router.callback_query(F.data == "add_balance")
-async def add_balance(callback: CallbackQuery, state: FSMContext):
-
-    await callback.answer()
-
-    user_id = callback.from_user.id
-
-    user_language = await get_user_language(user_id)
-
-    if user_language == "ru":
-        await callback.message.answer(
-            "<b>💸 Выберите платежную систему:</b>",
-            parse_mode="HTML",
-            reply_markup=kb.payment_systems)
-
-        await state.set_state(AddBalance.payment_system)
+async def parse_owner(session, gift_name, number):
+    url = f"https://t.me/nft/{gift_name}-{number}"
+    logging.info(f"Пытаемся получить HTML для {gift_name}-{number} по URL: {url}")
     
-    elif user_language == "en":
-        await callback.message.answer(
-            "<b>💸 Choose a payment system:</b>",
-            parse_mode="HTML",
-            reply_markup=kb.payment_systems)
-
-        await state.set_state(AddBalance.payment_system)
-
-@router.callback_query(AddBalance.payment_system)
-async def get_payment_system(callback: CallbackQuery, state: FSMContext):
+    html = await safe_request(session, url, HEADERS)
     
-    payment_system = callback.data.split("|")[1]
+    if not html:
+        logging.info(f"Не удалось получить HTML для {gift_name}-{number} по URL: {url}")
+        return number, None
 
-    user_id = callback.from_user.id
+    logging.info(f"HTML получен для {gift_name}-{number}, начинаем парсинг...")
+    soup = BeautifulSoup(html, "html.parser")
 
-    user_language = await get_user_language(user_id)
+    owner_element = soup.find("th", string="Owner")
+    if owner_element:
+        owner_td = owner_element.find_next_sibling("td")
+        if owner_td:
+            owner_a = owner_td.find("a", href=True)
+            if owner_a and "https://t.me/" in owner_a["href"]:
+                owner_nick = owner_a["href"].split("/")[-1]
+                logging.info(f"Владелец найден для {gift_name}-{number}: {owner_nick}")
+                return number, owner_nick
 
-    await state.update_data(payment_system=payment_system)
+    logging.info(f"Владелец не найден для {gift_name}-{number}")
+    return number, None
 
-    if user_language == "ru":
-        await callback.message.answer(
-            f"<b>💸 Платежная система которую вы выбрали: {payment_system}</b>\n\n"
-            "<b>💰 Теперь введите сумму для пополнения:</b>",
-            parse_mode="HTML",
-            reply_markup=kb.cancel)
-        
-        await state.set_state(AddBalance.amount)
-    
-    elif user_language == "en":
-        await callback.message.answer(
-            f"<b>💸 The payment system you selected: {payment_system}</b>\n\n"
-            "<b>💰 Now, please enter the amount to top up:</b>",
-            parse_mode="HTML",
-            reply_markup=kb.cancel)
+async def update_progress(progress_queue, quantity_issued, gift_name):
 
-        await state.set_state(AddBalance.amount)
+    global progress_data
 
-@router.message(AddBalance.amount)
-async def enter_amount(message: Message, state: FSMContext):
-    try:
-        amount = int(message.text)
+    while True:
+        if not parsing_enabled:
+            # logging.info(f"Обновление прогресса для {gift_name} было остановлено.")
+            break
 
-        data = await state.get_data()
+        last_number = await progress_queue.get()
+        progress = (last_number / quantity_issued) * 100
+        progress_data[gift_name] = progress
+        # logging.info(f"🔄 [{gift_name}] Прогресс парсинга: {progress:.2f}%")
 
-        payment_system = data.get('payment_system')
+        if last_number >= quantity_issued:
+            break
 
-        user_id = message.from_user.id
+        await asyncio.sleep(5)
 
-        user_language = await get_user_language(user_id)
+async def process_gift(db_connection, gift_name):
+    # logging.info(f"🎁 Начинаем обработку подарка: {gift_name}")
+    await create_table(db_connection, gift_name)
 
-        if int(amount) > 0:
-            await state.update_data(amount=amount)
+    last_number = await get_last_number(db_connection, gift_name)
+    quantity_issued, _ = await get_quantity(gift_name)
 
-            if user_language == "ru":
-                await message.answer(
-                    "<b>🔍 Пожалуйста, проверьте введенные данные:</b>\n\n"
-                    f"<b>💸 Платежная система: {payment_system}</b>\n"
-                    f"<b>💰 Сумма для пополнения: {amount} ₽</b>\n\n"
-                    "<b>➡️ Все указано верно?</b>",
-                    parse_mode="HTML",
-                    reply_markup=kb.confirm_add_balance_yes_no)
-                
-                await state.set_state(AddBalance.confirm)
-            
-            elif user_language == "en":
-                await message.answer(
-                    "<b>🔍 Please check the entered details:</b>\n\n"
-                    f"<b>💸 Payment system: {payment_system}</b>\n"
-                    f"<b>💰 Amount to top up: {amount} ₽</b>\n\n"
-                    "<b>➡️ Is everything correct?</b>",
-                    parse_mode="HTML",
-                    reply_markup=kb.confirm_add_balance_yes_no_en)
+    # logging.info(f"🎁 Парсим {gift_name}: найдено {quantity_issued}, начинаем с {last_number + 1}")
 
-                await state.set_state(AddBalance.confirm)
-        else:
-            if user_language == "ru":
-                await message.reply("⚠️ Пожалуйста, введите только чётное положительное число.")
-            elif user_language == "en":
-                await message.reply("⚠️ Please enter only an even positive number.")
-    except ValueError:
-        if user_language == "ru":
-            await message.reply("❌ Пожалуйста, введите корректную сумму в рублях (целое положительное число).")
-        elif user_language == "en":
-            await message.reply("❌ Please enter a valid amount in rubles (a positive whole number).")
+    progress_queue = asyncio.Queue()
+    progress_task = asyncio.create_task(update_progress(progress_queue, quantity_issued, gift_name))
 
-@router.callback_query(F.data.startswith("CHECK|"))
-async def check_invoice(callback: CallbackQuery, state: FSMContext):
+    async with aiohttp.ClientSession() as session:
+        # logging.info(f"🎁 [{gift_name}] Запускаем цикл парсинга страниц...")
+        for i in range(last_number + 1, quantity_issued + 1):
+            if not parsing_enabled:
+                # logging.info(f"Парсинг {gift_name} был отменен на номере {i}.")
+                break
 
-    await callback.answer()
+            # logging.info(f"🎁 [{gift_name}] Парсим страницу номер {i}...")
+            try:
+                data = await parse_page(session, gift_name, i)
+                await save_to_db(db_connection, gift_name, data)
+                await progress_queue.put(i) 
+                await asyncio.sleep(0.02)
+            except Exception as e:
+                # logging.info(f"🎁 [{gift_name}] Ошибка при парсинге страницы {i}: {e}")
+                continue
 
-    data = await state.get_data()
+        # logging.info(f"🎁 [{gift_name}] Цикл парсинга страниц завершен.")
 
-    amount = data.get('amount')
-    payment_id = data.get('payment_id')
-    invoice_id = int(callback.data.split("|")[1])
+    await progress_queue.put(quantity_issued)
+    await progress_task
+    # logging.info(f"🎁 Обработка подарка {gift_name} завершена.")
 
-    user_id = callback.from_user.id
+parsing_enabled = False
+parsing_task = None
 
-    user_language = await get_user_language(user_id)
+async def start_parsing(new_gifts_list):
+    global parsing_enabled, parsing_task
+
+    # logging.info(f"🚀 Запуск программы парсинга начат для подарков: {new_gifts_list}")
+
+    if not parsing_enabled:
+        # logging.info("🚫 Парсинг отключен.")
+        return
+
+    db_connection = await get_db_connection()
+
+    tasks = [process_gift(db_connection, gift) for gift in new_gifts_list]
+
+    parsing_task = asyncio.gather(*tasks)
 
     try:
-        invoice = await acp.get_invoices(invoice_ids=invoice_id)
-
+        await parsing_task
     except Exception as e:
-        if user_language == "ru":
-            await callback.answer(f"❌ Ошибка при получении статуса счета: {str(e)}")
-            return
-        elif user_language == "en":
-            await callback.answer(f"❌ Error while retrieving the account status: {str(e)}")
-            return
+        logging.info(f"🚨 Произошла ошибка во время парсинга: {e}")
+    finally:
+        parsing_enabled = False
+        # logging.info("✅ Парсинг завершен.")
 
-    if invoice.status == "paid":
-        if await check_balance_updated(invoice_id):
-            if user_language == "ru":
-                await callback.message.answer("✅ Баланс уже был обновлен ранее.")
-                return
-            elif user_language == "en":
-                await callback.message.answer("✅ The balance has already been updated earlier.")
-                return
+@router.callback_query(F.data == "start_gift_parsing")
+async def start_gift_parsing_button(callback: CallbackQuery):
+    global parsing_enabled, parsing_task
+
+    if parsing_enabled:
+        await callback.answer("Парсинг уже включен. Ожидайте завершения.")
+        return
+
+    parsing_enabled = True
+    # logging.info("Парсинг включен.")
+    await callback.answer("Парсинг начат! 🚀")
+
+    await start_parsing(GIFTS)
+
+    parsing_enabled = False
+    await callback.answer("Парсинг завершен. ✅")
+
+@router.callback_query(F.data == "stop_gift_parsing")
+async def stop_gift_parsing_button(callback: CallbackQuery):
+
+    global parsing_enabled, parsing_task
+
+    if not parsing_enabled:
+        await callback.answer("Парсинг уже выключен.")
+        return
+
+    if parsing_task:
+        parsing_task.cancel()
             
-        if user_language == "ru":
-            await callback.answer("✅ Проверка завершена: статус оплаты подтвержден.")
-        elif user_language == "en":
-            await callback.answer("✅ Check completed: payment status confirmed.")
+    parsing_enabled = False
+    await callback.answer("Парсинг остановлен. ❌")
 
-        user_info = await get_user_info(user_id)
-        _, _, balance, _ = user_info
-        new_balance = int(balance) + int(amount)
+auto_parsing_enabled = False
+auto_parsing_task = None
+parsing_enabled = False
 
-        invoice_status = invoice.status
+async def auto_parsing(user_id):
+    global auto_parsing_enabled, auto_parsing_task, parsing_enabled
 
-        await update_invoice_status(invoice_status, invoice_id)
+    await bot.send_message(user_id, "<b>Начинаем через секунду... ⏳</b>", parse_mode="HTML")
+    await asyncio.sleep(1)
 
-        await balance_updated(invoice_id)
+    # logging.info(f"🚀 Авто-парсинг запущен для пользователя {user_id}.")
+    await bot.send_message(user_id, "🚀 <b>Авто-парсинг запущен!</b>\n\nПроверка на новые подарки будет проводиться <b>каждую минуту</b>.", parse_mode="HTML")
 
-        await top_up_balance(new_balance, user_id)
+    auto_parsing_enabled = True
+    try:
+        while auto_parsing_enabled:
+            await check_new_gifts(user_id)
+            # logging.info(f"🔍 Проверка новых подарков для пользователя {user_id} завершена.")
+            if parsing_enabled:
+                while parsing_enabled:
+                    await asyncio.sleep(1)
+                # logging.info(f"⏳ Пауза 15 минут после парсинга перед следующей проверкой для пользователя {user_id}...")
+                for i in range(900):
+                    # logging.info(f"⏳ [После парсинга] Ожидание секунда {i+1}/900...")
+                    if not auto_parsing_enabled:
+                        # logging.info(f"🔴 Авто-парсинг отключён во время ожидания после парсинга. Пользователь: {user_id}")
+                        await bot.send_message(user_id, "❌ Авто-парсинг остановлен.")
+                        return
+                    await asyncio.sleep(1)
+                    # logging.info(f"⏳ [После парсинга] Секунда {i+1}/900 ожидания завершена.")
+                # logging.info(f"⏳ 15-минутная пауза после парсинга завершена.")
+            else:
+                # logging.info(f"⏳ Ожидание 15 минут перед следующей проверкой для пользователя {user_id}...")
+                for i in range(900):
+                    # logging.info(f"⏳ [Без парсинга] Ожидание секунда {i+1}/900...")
+                    if not auto_parsing_enabled:
+                        # logging.info(f"🔴 Авто-парсинг отключён во время ожидания. Пользователь: {user_id}")
+                        await bot.send_message(user_id, "❌ Авто-парсинг остановлен.")
+                        return
+                    await asyncio.sleep(1)
+                    # logging.info(f"⏳ [Без парсинга] Секунда {i+1}/900 ожидания завершена.")
+                # logging.info(f"⏳ 15-минутное ожидание завершено.")
 
-        if user_language == "ru":
-            await callback.message.answer(
-                f"<b>🎉 Пополнение баланса успешно!</b>\n\n"
-                f"<b>💸 Сумма пополнения:</b> {amount} ₽\n"
-                f"<b>🆔 ID платежа:</b> <code>{payment_id}</code>\n\n"
-                f"<b>🔄 Ваш баланс обновлен. 😄</b>",
-                parse_mode="HTML",
-                reply_markup=kb.menu)
-        
-        elif user_language == "en":
-            await callback.message.answer(
-                f"<b>🎉 Balance top-up successful!</b>\n\n"
-                f"<b>💸 Top-up amount:</b> {amount} ₽\n"
-                f"<b>🆔 Payment ID:</b> <code>{payment_id}</code>\n\n"
-                f"<b>🔄 Your balance has been updated. 😄</b>",
-                parse_mode="HTML",
-                reply_markup=kb.menu_en)
+    except asyncio.CancelledError:
+        # logging.info(f"🛑 Задача авто-парсинга отменена для пользователя {user_id}.")
+        await bot.send_message(user_id, "❌ Авто-парсинг остановлен (отмена задачи).")
+    finally:
+        auto_parsing_task = None
+        # logging.info(f"Авто-парсинг завершен для пользователя {user_id}.")
 
-    elif invoice.status == 'expired':
-        if user_language == "ru":
-            await callback.answer("❌ Счет истек. Пожалуйста, создайте новый.")
-        elif user_language == "en":
-            await callback.answer("❌ The account has expired. Please create a new one.")
+@router.callback_query(F.data == "start_auto_parsing")
+async def start_auto_parsing_button(callback: CallbackQuery):
+
+    global auto_parsing_enabled, auto_parsing_task
+
+    user_id = callback.from_user.id
+
+    if auto_parsing_enabled:
+        await callback.answer("Авто-парсинг уже включен.")
+        return
+
+    auto_parsing_enabled = True
+    if auto_parsing_task is None:
+        auto_parsing_task = asyncio.create_task(auto_parsing(user_id))
     else:
-        if user_language == "ru":
-            await callback.answer("❌ Счет пока не оплачен. Пожалуйста, повторите проверку позже.")
-        elif user_language == "en":
-            await callback.answer("❌ The account has not been paid yet. Please check again later.")
+        await callback.answer("Авто-парсинг задача уже запущена.")
 
-@router.callback_query(AddBalance.confirm)
-async def confirm(callback: CallbackQuery, state: FSMContext):
+@router.callback_query(F.data == "stop_auto_parsing")
+async def stop_auto_parsing_button(callback: CallbackQuery):
 
-    user_id = callback.from_user.id
+    global auto_parsing_enabled, auto_parsing_task
 
-    user_language = await get_user_language(user_id)
+    if not auto_parsing_enabled:
+        await callback.answer("Авто-парсинг уже выключен.")
+        return
 
-    try:
-        data = await state.get_data()
+    auto_parsing_enabled = False
+    if auto_parsing_task is not None:
+        auto_parsing_task.cancel()
+    else:
+        await callback.answer("Авто-парсинг не запущен.")
 
-        payment_system = data.get('payment_system')
-        amount = data.get('amount')
+async def check_new_gifts(user_id):
 
-        if callback.data == "confirm_add_balance_yes":
+    global parsing_enabled
+    # logging.info(f"🔍 Проверка новых подарков для пользователя {user_id}...")
 
-            if user_language == "ru":
-                description = f'Пополнение баланса на {amount} ₽ 💵'
-            elif user_language == "en":
-                description = f'Balance top-up of {amount} ₽ 💵'
+    db_connection = await get_db_connection()
+    report_lines = []
+    total_new_gifts_count = 0
+    new_gifts_to_parse = []
 
-            invoice = await acp.create_invoice(
-                currency_type='fiat',
-                asset='USDT',
-                fiat='RUB',
-                amount=amount,
-                description=description
-            )
+    gifts_data = []
 
-            invoice_id = invoice.invoice_id
-            invoice_status = invoice.status
+    for gift in GIFTS:
+        last_number = await get_last_number(db_connection, gift)
+        issued, total = await get_quantity(gift)
+        new_items_count = issued - last_number
+        new_gift_available = total - last_number
+        gifts_data.append((gift, issued, new_items_count, new_gift_available))
 
-            payment_id = str(uuid.uuid4())
-            payment_amount = int(amount)
-            payment_date = datetime.now().strftime('%d.%m.%Y %H:%M:%S')
+    report_lines = []
+    total_new_gifts_count = 0
 
-            await log_payment(user_id, invoice_id, invoice_status, payment_id, payment_amount, payment_date)
+    for gift, issued, new_items_count, new_gift_available in gifts_data:
 
-            await state.update_data(invoice_id=invoice.invoice_id, payment_id=payment_id, amount=amount)
+        gift_name = GIFTS_NAME_WITH_LINKS.get(gift, f"<b>{gift}</b>")
+        gift_line = f"{gift_name} ({new_items_count})"
 
-            if user_language == "ru":
+        if new_items_count > 0:
+            gift_line += " 🆕️"
+            total_new_gifts_count += new_items_count
+            if new_items_count > 0:
+                new_gifts_to_parse.append(gift)
 
-                pay_button = InlineKeyboardButton(text="💵 Оплатить", url=invoice.bot_invoice_url)
-                payment_confirm_button = InlineKeyboardButton(text="✅ Проверить оплату", callback_data=f"CHECK|{invoice.invoice_id}")
-                pay_markup = InlineKeyboardMarkup(inline_keyboard=[[pay_button], [payment_confirm_button]])
+        report_lines.append(gift_line)
 
-            elif user_language == "en":
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    report_message = (
+        f"✨ <b>NFT Update Report!</b> ✨\n"
+        f"<b>Time:</b> {timestamp} (MSK)\n\n"
+        + "\n".join(report_lines) +
+        f"\n\n<b>New:</b> {total_new_gifts_count} gifts")
 
-                pay_button = InlineKeyboardButton(text="💵 Pay", url=invoice.bot_invoice_url)
-                payment_confirm_button = InlineKeyboardButton(text="✅ Check Payment", callback_data=f"CHECK|{invoice.invoice_id}")
-                pay_markup = InlineKeyboardMarkup(inline_keyboard=[[pay_button], [payment_confirm_button]])
+    await bot.send_message(LOGS_CHANNEL_ID, report_message, parse_mode="HTML", disable_web_page_preview=True)
 
-            if user_language == "ru":
-                await callback.message.answer(
-                    f"<b>🏦 Информация о пополнении:</b>\n\n"
-                    f"<i>🔹 Платежная система:</i> <b>{payment_system}</b>\n"
-                    f"<i>🔹 Сумма к оплате:</i> <b>{amount} ₽</b>\n"
-                    f"<i>🔹 ID платежа:</i> <b><code>{payment_id}</code></b>\n\n"
-                    "<i>🔻 Для завершения операции нажмите кнопку ниже, чтобы произвести оплату:</i>",
-                    parse_mode="HTML",
-                    reply_markup=pay_markup)
+    if new_gifts_to_parse:
+        parsing_enabled = True
 
-            elif user_language == "en":
-                await callback.message.answer(
-                    f"<b>🏦 Top-up Information:</b>\n\n"
-                    f"<i>🔹 Payment system:</i> <b>{payment_system}</b>\n"
-                    f"<i>🔹 Amount to pay:</i> <b>{amount} ₽</b>\n"
-                    f"<i>🔹 Payment ID:</i> <b><code>{payment_id}</code></b>\n\n"
-                    "<i>🔻 To complete the operation, press the button below to make the payment:</i>",
-                    parse_mode="HTML",
-                    reply_markup=pay_markup)
+        await start_parsing(new_gifts_to_parse)
 
-            elif callback.data == "confirm_add_balance_no":
-                if user_language == "ru":
-                    await callback.message.answer(
-                        "<b>❌ Вы отменили процесс.</b>\n"
-                        "<i>Используйте кнопку ниже, чтобы открыть главное меню.</i>",
-                        parse_mode="HTML",
-                        reply_markup=kb.menu)
-                    await state.clear()
+        parsing_enabled = False
 
-                elif user_language == "en":
-                    await callback.message.answer(
-                        "<b>❌ You have canceled the process.</b>\n"
-                        "<i>Use the button below to open the main menu.</i>",
-                        parse_mode="HTML",
-                        reply_markup=kb.menu)
-                    await state.clear()
+    # if total_new_gifts_count == 0:
+    #     await bot.send_message(user_id, "✅ <b>Новых подарков не найдено.</b>\n\nПроверка будет повторена через минуту.", parse_mode="HTML")
+    # else:
+    #     await bot.send_message(user_id, report_message, parse_mode="HTML", reply_markup=kb.back_to_menu, disable_web_page_preview=True)
 
-    except Exception as e:
-        if user_language == "ru":
-            await callback.message.answer("<b>❌ Произошла ошибка при создании счета. Попробуйте еще раз.</b>", parse_mode="HTML")
-        elif user_language == "en":
-            await callback.message.answer("<b>❌ An error occurred while creating the invoice. Please try again.</b>", parse_mode="HTML")
+    #     if new_gifts_to_parse:
+    #         parsing_enabled = True
+    #         await bot.send_message(user_id, "🚀 <b>Запущен парсинг найденных подарков...</b>", parse_mode="HTML")
+
+    #         await start_parsing(new_gifts_to_parse)
+    #         parsing_enabled = False
+
+    #         await bot.send_message(user_id, "✅ <b>Парсинг завершён!</b>", parse_mode="HTML")
 
